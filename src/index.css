@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap');
+@import 'tailwindcss';
 
 :root {
   --bg: #ececf2;
@@ -22,7 +23,7 @@
 
 body {
   margin: 0;
-  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
   color: var(--text);
   background:
     radial-gradient(circle at 8% 7%, #f8e9ff 0%, transparent 23%),
@@ -72,7 +73,7 @@ a {
 .auth-card h2 {
   margin: 0;
   text-align: center;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 2rem;
 }
 
@@ -213,6 +214,15 @@ input:disabled {
   gap: 0.7rem;
 }
 
+.brand-link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
 .brand-logo {
   width: 40px;
   height: 40px;
@@ -312,7 +322,7 @@ input:disabled {
 .hero-banner h2,
 .about-hero h2 {
   margin: 0;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.8rem;
 }
 
@@ -473,7 +483,7 @@ input:disabled {
 
 .block-title h2 {
   margin: 0;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Playfair Display', Georgia, serif;
 }
 
 .block-title p {
@@ -565,6 +575,18 @@ input:disabled {
   background: transparent;
 }
 
+.remove-btn {
+  color: #911111 !important;
+  border-color: #f4c2c2 !important;
+  background: #fff2f2 !important;
+  font-weight: 700;
+}
+
+.remove-btn:hover {
+  transform: translateY(-1px);
+  background: #ffe7e7 !important;
+}
+
 .accepted-note {
   margin: 0.65rem 0 0;
   display: inline-flex;
@@ -640,6 +662,16 @@ input:disabled {
   color: var(--muted);
 }
 
+.student-avatar-fallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(130deg, #5c20f6, #9d05ff);
+}
+
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -713,7 +745,7 @@ input:disabled {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Playfair Display', Georgia, serif;
 }
 
 .about-block p {
@@ -784,7 +816,7 @@ input:disabled {
 
 .supervisor-hero h2 {
   margin: 0;
-  font-family: 'Source Serif 4', Georgia, serif;
+  font-family: 'Playfair Display', Georgia, serif;
 }
 
 .supervisor-hero p {

@@ -120,7 +120,11 @@ export default function SupervisorDashboardPage() {
                   <button type="button" onClick={() => handleStatusUpdate(request.id, 'accepted')}>
                     Accept
                   </button>
-                  <button type="button" className="ghost" onClick={() => handleStatusUpdate(request.id, 'rejected')}>
+                  <button
+                    type="button"
+                    className="ghost remove-btn inline-flex items-center"
+                    onClick={() => handleStatusUpdate(request.id, 'rejected')}
+                  >
                     Reject
                   </button>
                 </div>
@@ -180,7 +184,11 @@ export default function SupervisorDashboardPage() {
                 <h4>{topic.title}</h4>
                 <span className="topic-tag">{topic.area}</span>
                 <p>{topic.description}</p>
-                <button type="button" className="ghost" onClick={() => removeSupervisorTopic(topic.id)}>
+                <button
+                  type="button"
+                  className="ghost remove-btn inline-flex items-center"
+                  onClick={() => removeSupervisorTopic(topic.id)}
+                >
                   Remove Topic
                 </button>
               </article>

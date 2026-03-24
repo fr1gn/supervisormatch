@@ -19,6 +19,10 @@ const defaultUsers = [
     role: 'student',
     department: 'Computer Science',
     groupName: 'CS-2024-A',
+    phone: '+10000000000',
+    studyLevel: 'Final Year',
+    interests: 'Artificial Intelligence, Learning Analytics',
+    bio: 'Student interested in AI-supported education and recommendation systems.',
     password: 'demo123',
   },
   {
@@ -28,6 +32,10 @@ const defaultUsers = [
     role: 'supervisor',
     department: 'Computer Science',
     groupName: '',
+    phone: '',
+    studyLevel: '',
+    interests: '',
+    bio: '',
     password: 'demo123',
   },
 ]
@@ -126,6 +134,10 @@ export function AppProvider({ children }) {
       role: payload.role,
       department: payload.department.trim(),
       groupName: payload.groupName.trim(),
+      phone: '',
+      studyLevel: '',
+      interests: '',
+      bio: '',
       password: payload.password,
     }
 
@@ -158,6 +170,10 @@ export function AppProvider({ children }) {
         role: normalizedEmail.includes('supervisor') ? 'supervisor' : 'student',
         department: 'Undeclared',
         groupName: '',
+        phone: '',
+        studyLevel: '',
+        interests: '',
+        bio: '',
         password: password.trim(),
       }
 
@@ -187,7 +203,7 @@ export function AppProvider({ children }) {
     setSession(nextSession)
     writeStorage(STORAGE_KEYS.session, nextSession)
 
-    return { ok: true }
+    return { ok: true, role: user.role }
   }
 
   const logoutUser = () => {
@@ -202,6 +218,14 @@ export function AppProvider({ children }) {
 
     return supervisors.find((item) => item.email === session.email) || null
   }, [session, supervisors])
+
+  const getCurrentStudent = useCallback(() => {
+    if (!session?.email) {
+      return null
+    }
+
+    return users.find((item) => item.email === session.email) || null
+  }, [session, users])
 
   const sendRequest = ({ supervisorId, message }) => {
     if (!session || session.role !== 'student') {
@@ -345,6 +369,44 @@ export function AppProvider({ children }) {
     return { ok: true }
   }
 
+  const updateStudentProfile = (payload) => {
+    if (!session || session.role !== 'student') {
+      return { ok: false, error: 'Only students can edit this profile.' }
+    }
+
+    const nextUsers = users.map((item) => {
+      if (item.email !== session.email) {
+        return item
+      }
+
+      return {
+        ...item,
+        fullName: payload.fullName.trim(),
+        department: payload.department.trim(),
+        groupName: payload.groupName.trim(),
+        phone: payload.phone.trim(),
+        studyLevel: payload.studyLevel.trim(),
+        interests: payload.interests.trim(),
+        bio: payload.bio.trim(),
+      }
+    })
+
+    setUsers(nextUsers)
+    writeStorage(STORAGE_KEYS.users, nextUsers)
+
+    const nextSession = {
+      ...session,
+      fullName: payload.fullName.trim(),
+      department: payload.department.trim(),
+      groupName: payload.groupName.trim(),
+    }
+
+    setSession(nextSession)
+    writeStorage(STORAGE_KEYS.session, nextSession)
+
+    return { ok: true }
+  }
+
   const addSupervisorTopic = (payload) => {
     if (!session || session.role !== 'supervisor') {
       return { ok: false, error: 'Only supervisors can add topics.' }
@@ -411,10 +473,12 @@ export function AppProvider({ children }) {
     loginUser,
     logoutUser,
     sendRequest,
+    getCurrentStudent,
     getCurrentSupervisor,
     getSupervisorRequests,
     updateRequestStatus,
     cancelRequest,
+    updateStudentProfile,
     updateSupervisorProfile,
     addSupervisorTopic,
     removeSupervisorTopic,

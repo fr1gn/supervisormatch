@@ -8,6 +8,7 @@ A complete React + Vite application for connecting students with academic superv
 - `react-dom`
 - `react-router-dom`
 - `lucide-react`
+- `tailwindcss` + `@tailwindcss/vite`
 - `vite`
 
 ## Implemented Pages
@@ -49,6 +50,9 @@ A complete React + Vite application for connecting students with academic superv
 	- supervisor status updates are reflected in student request tracking
 - Editable supervisor profile:
 	- name, title, phone, department, areas, biography
+- Editable student profile:
+	- editable: full name, phone, department, group name, study level, interests, bio
+	- non-editable: login credentials (email/password)
 - About page with full mission, feature lists, workflow steps, and contact info
 - Responsive layout for desktop and mobile
 - Purple gradient visual system aligned with your design direction

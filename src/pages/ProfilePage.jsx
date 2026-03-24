@@ -1,48 +1,134 @@
-import { Lightbulb, Mail, Phone, Save, UserRound } from 'lucide-react'
+import { Lightbulb, Save, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useApp } from '../context/AppContext'
 
 function StudentProfile() {
-  const { session } = useApp()
+  const { session, getCurrentStudent, updateStudentProfile } = useApp()
+  const student = getCurrentStudent()
+
+  const [form, setForm] = useState({
+    fullName: student?.fullName || session?.fullName || '',
+    email: student?.email || session?.email || '',
+    department: student?.department || session?.department || '',
+    groupName: student?.groupName || session?.groupName || '',
+    phone: student?.phone || '',
+    studyLevel: student?.studyLevel || '',
+    interests: student?.interests || '',
+    bio: student?.bio || '',
+  })
+  const [notice, setNotice] = useState('')
+
+  const onChange = (event) => {
+    const { name, value } = event.target
+    setForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const onSubmit = (event) => {
+    event.preventDefault()
+
+    const result = updateStudentProfile(form)
+    if (!result.ok) {
+      setNotice(result.error)
+      return
+    }
+
+    setNotice('Profile updated successfully.')
+  }
 
   return (
-    <section className="profile-page">
-      <div className="block-title">
-        <h2>My Profile</h2>
-        <p>Account details used across SupervisorMatch.</p>
-      </div>
-
-      <article className="profile-card">
-        <div className="profile-line">
-          <UserRound size={18} />
-          <div>
-            <span>Full Name</span>
-            <strong>{session?.fullName || 'Not set'}</strong>
-          </div>
+    <section className="profile-page supervisor-profile-page">
+      <article className="profile-top-banner">
+        <div>
+          <h2>My Profile</h2>
+          <p>Student</p>
         </div>
+      </article>
 
-        <div className="profile-line">
-          <Mail size={18} />
-          <div>
-            <span>Email</span>
-            <strong>{session?.email || 'Not set'}</strong>
+      <article className="supervisor-profile-card">
+        <header className="supervisor-profile-head">
+          <div className="student-avatar-fallback">
+            <UserRound size={22} />
           </div>
-        </div>
+          <div>
+            <h3>{form.fullName || 'Student'}</h3>
+            <p>{form.email}</p>
+            <span className="role-badge">Student</span>
+          </div>
+        </header>
 
-        <div className="profile-grid">
+        <form onSubmit={onSubmit} className="supervisor-profile-form">
+          <div className="two-col-grid">
+            <div>
+              <label htmlFor="fullName">Full Name</label>
+              <input id="fullName" name="fullName" value={form.fullName} onChange={onChange} required />
+            </div>
+            <div>
+              <label htmlFor="email">Email (Login)</label>
+              <input id="email" name="email" value={form.email} disabled />
+            </div>
+            <div>
+              <label htmlFor="phone">Phone Number</label>
+              <input id="phone" name="phone" value={form.phone} onChange={onChange} placeholder="e.g., +1234567890" />
+            </div>
+            <div>
+              <label htmlFor="studyLevel">Study Level</label>
+              <input
+                id="studyLevel"
+                name="studyLevel"
+                value={form.studyLevel}
+                onChange={onChange}
+                placeholder="e.g., Final Year"
+              />
+            </div>
+            <div>
+              <label htmlFor="department">Department</label>
+              <input id="department" name="department" value={form.department} onChange={onChange} required />
+            </div>
+            <div>
+              <label htmlFor="groupName">Group Name</label>
+              <input id="groupName" name="groupName" value={form.groupName} onChange={onChange} />
+            </div>
+          </div>
+
+          <label htmlFor="interests">Research Interests</label>
+          <input
+            id="interests"
+            name="interests"
+            value={form.interests}
+            onChange={onChange}
+            placeholder="e.g., AI, Data Science, HCI"
+          />
+
+          <label htmlFor="bio">Bio</label>
+          <textarea
+            id="bio"
+            name="bio"
+            rows={4}
+            value={form.bio}
+            onChange={onChange}
+            placeholder="Write a short introduction about your goals and interests"
+          />
+
+          <div className="request-actions">
+            <button type="submit">
+              <Save size={16} />
+              Save Profile
+            </button>
+          </div>
+
+          {notice ? <p className="inline-note">{notice}</p> : null}
+        </form>
+
+        <section className="account-info-grid">
           <div>
-            <span>Role</span>
-            <strong>{session?.role || 'Not set'}</strong>
+            <span>Account Type</span>
+            <strong>Student</strong>
           </div>
           <div>
-            <span>Department</span>
-            <strong>{session?.department || 'Not set'}</strong>
+            <span>Password</span>
+            <strong>Hidden (not editable here)</strong>
           </div>
-          <div>
-            <span>Group Name</span>
-            <strong>{session?.groupName || 'Not set'}</strong>
-          </div>
-        </div>
+        </section>
       </article>
     </section>
   )

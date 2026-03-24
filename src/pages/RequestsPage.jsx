@@ -54,7 +54,7 @@ export default function RequestsPage() {
               ) : null}
 
               <div className="request-actions">
-                <button type="button" className="ghost" onClick={() => cancelRequest(request.id)}>
+                <button type="button" className="ghost remove-btn inline-flex items-center" onClick={() => cancelRequest(request.id)}>
                   Remove
                 </button>
               </div>
