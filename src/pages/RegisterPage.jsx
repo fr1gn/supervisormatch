@@ -37,6 +37,11 @@ export default function RegisterPage() {
       return
     }
 
+    if (!form.department.trim()) {
+      setError('Department is required.')
+      return
+    }
+
     const result = registerUser(form)
 
     if (!result.ok) {
@@ -103,13 +108,14 @@ export default function RegisterPage() {
             </label>
           </fieldset>
 
-          <label htmlFor="department">Department (Optional)</label>
+          <label htmlFor="department">Department</label>
           <input
             id="department"
             name="department"
             value={form.department}
             onChange={handleChange}
             placeholder="e.g., Computer Science"
+            required
           />
 
           <label htmlFor="groupName">Group Name (Optional)</label>

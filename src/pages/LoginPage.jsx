@@ -73,12 +73,12 @@ export default function LoginPage() {
         <div className="demo-note">
           <p>Demo Accounts</p>
           <p>
-            Student: <strong>student@test.com</strong> (or any new student email)
+            Student: <strong>student@test.com</strong>
           </p>
           <p>
             Supervisor: <strong>johnson@university.edu</strong>
           </p>
-          <p>Password: any password</p>
+          <p>Password: <strong>demo123</strong></p>
         </div>
       </div>
     </section>

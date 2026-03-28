@@ -160,29 +160,13 @@ export function AppProvider({ children }) {
       return { ok: false, error: 'Please enter your email and password.' }
     }
 
-    let user = users.find((item) => item.email === normalizedEmail)
+    const user = users.find((item) => item.email === normalizedEmail)
 
     if (!user) {
-      user = {
-        id: `usr-student-${Date.now()}`,
-        fullName: normalizedEmail.split('@')[0],
-        email: normalizedEmail,
-        role: normalizedEmail.includes('supervisor') ? 'supervisor' : 'student',
-        department: 'Undeclared',
-        groupName: '',
-        phone: '',
-        studyLevel: '',
-        interests: '',
-        bio: '',
-        password: password.trim(),
-      }
-
-      const nextUsers = [...users, user]
-      setUsers(nextUsers)
-      writeStorage(STORAGE_KEYS.users, nextUsers)
+      return { ok: false, error: 'Account not found. Please register first.' }
     }
 
-    if (user.password !== password.trim() && !defaultUsers.some((demoUser) => demoUser.email === normalizedEmail)) {
+    if (user.password !== password.trim()) {
       return { ok: false, error: 'Incorrect password. Please try again.' }
     }
 
