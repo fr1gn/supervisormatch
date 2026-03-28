@@ -5,7 +5,7 @@ This project currently uses a local frontend state layer for fast development.
 ## Recommended Backend Stack
 
 - Runtime: `Node.js`
-- Framework: `Express`
+- Framework: `Nest.js`
 - ORM: `Prisma` (or `Drizzle`)
 - DB: `PostgreSQL`
 - Auth: `JWT` + refresh tokens (httpOnly cookies)

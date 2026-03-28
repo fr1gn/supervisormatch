@@ -92,6 +92,18 @@ npm install
 npm run dev
 ```
 
+## Run Backend (NestJS)
+
+```bash
+cd backend
+npm install
+npm run start:dev
+```
+
+Backend base URL: `http://localhost:4000`
+
+Detailed backend notes are in `backend/README.md` and defence notes are in `docs/BACKEND_DEFENCE_GUIDE.md`.
+
 ## Build and Lint
 
 ```bash

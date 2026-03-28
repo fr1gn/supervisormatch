@@ -1,0 +1,82 @@
+{
+  "users": [
+    {
+      "id": "usr-demo-student",
+      "fullName": "Alex Carter",
+      "email": "student@test.com",
+      "role": "student",
+      "passwordHash": "6365efb81a2331e0133caec38c4b35df8052f94ea468dd9964dcd9382e8564d5",
+      "department": "Computer Science",
+      "groupName": "CS-2024-A",
+      "phone": "+10000000000",
+      "studyLevel": "Final Year",
+      "interests": "Artificial Intelligence, Learning Analytics",
+      "bio": "Student interested in AI-supported education and recommendation systems.",
+      "createdAt": "2026-03-28T00:00:00.000Z",
+      "refreshTokenHash": "90a633ba1c769f257608deb289f734afde636bdfec0f7ca7782be2b77b190e98"
+    },
+    {
+      "id": "usr-demo-supervisor",
+      "fullName": "Dr. Sarah Johnson",
+      "email": "johnson@university.edu",
+      "role": "supervisor",
+      "passwordHash": "6365efb81a2331e0133caec38c4b35df8052f94ea468dd9964dcd9382e8564d5",
+      "department": "Computer Science",
+      "groupName": "",
+      "phone": "+1234567890",
+      "studyLevel": "",
+      "interests": "",
+      "bio": "Specializing in AI and ML with 15+ years of research experience.",
+      "createdAt": "2026-03-28T00:00:00.000Z"
+    }
+  ],
+  "supervisors": [
+    {
+      "id": "sup-1",
+      "userId": "usr-demo-supervisor",
+      "email": "johnson@university.edu",
+      "phone": "+1234567890",
+      "name": "Dr. Sarah Johnson",
+      "title": "Professor",
+      "department": "Computer Science",
+      "areas": [
+        "Artificial Intelligence",
+        "Machine Learning",
+        "Deep Learning"
+      ],
+      "capacity": 8,
+      "currentStudents": 5,
+      "avatar": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=160&q=80",
+      "bio": "Specializing in AI and ML with 15+ years of research experience.",
+      "topics": [
+        {
+          "id": "top-1",
+          "title": "Neural Networks for Image Recognition",
+          "area": "Artificial Intelligence",
+          "description": "Exploring advanced CNN architectures",
+          "createdAt": "2026-03-28T00:00:00.000Z"
+        },
+        {
+          "id": "top-2",
+          "title": "Natural Language Processing",
+          "area": "Machine Learning",
+          "description": "Transformer models and applications",
+          "createdAt": "2026-03-28T00:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "id": "req-demo-1",
+      "studentUserId": "usr-demo-student",
+      "studentEmail": "student@test.com",
+      "studentName": "Alex Carter",
+      "supervisorId": "sup-1",
+      "message": "I am interested in AI for education and would like to work with your group.",
+      "status": "under review",
+      "createdAt": "2026-03-17T11:10:00.000Z",
+      "updatedAt": "2026-03-17T11:10:00.000Z"
+    }
+  ]
+}
