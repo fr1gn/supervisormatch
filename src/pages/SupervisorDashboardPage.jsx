@@ -1,4 +1,4 @@
-import { Inbox, Plus, Trash2, Users, Clock, BookOpen, ChevronRight } from 'lucide-react'
+import { Inbox, Plus, Trash2, Users, Clock, BookOpen } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
