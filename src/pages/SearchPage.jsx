@@ -274,7 +274,7 @@ export default function SearchPage() {
           style={{
             display: 'grid',
             gap: 16,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
           }}
         >
           {filteredSupervisors.map((supervisor) => (
