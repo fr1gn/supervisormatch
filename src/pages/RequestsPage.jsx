@@ -1,10 +1,14 @@
-import { Inbox, Info, Clock, ArrowRight } from 'lucide-react'
+import { Inbox, CheckCircle, Clock, ArrowRight, Mail } from 'lucide-react'
 import { Navigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { useApp } from '../context/AppContext'
 import { staggerContainer, staggerItem } from '../lib/animations'
+
+function getInitials(name) {
+  return name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
+}
 
 export default function RequestsPage() {
   const { session, requests, supervisors } = useApp()
@@ -69,7 +73,7 @@ export default function RequestsPage() {
               className="card"
               style={{ padding: '16px 20px' }}
             >
-              <p className="text-caption" style={{ marginBottom: 4 }}>{label}</p>
+              <p className="text-caption" style={{ marginBottom: 4, fontSize: '0.75rem' }}>{label}</p>
               <p
                 className="heading-title"
                 style={{ fontSize: '1.5rem', color }}
@@ -115,20 +119,25 @@ export default function RequestsPage() {
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
                     gap: 12,
-                    marginBottom: 12,
+                    marginBottom: 14,
                     flexWrap: 'wrap',
                   }}
                 >
-                  <div style={{ minWidth: 0 }}>
-                    <h3
-                      className="heading-subtitle"
-                      style={{ fontSize: '1rem', marginBottom: 2 }}
-                    >
-                      {request.supervisor?.name || 'Unknown Supervisor'}
-                    </h3>
-                    <p className="text-caption">
-                      {request.supervisor?.department || 'Unknown Department'}
-                    </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                    <div className="avatar avatar-sm">
+                      {getInitials(request.supervisor?.name)}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <h3
+                        className="heading-subtitle"
+                        style={{ fontSize: '0.9375rem', marginBottom: 2 }}
+                      >
+                        {request.supervisor?.name || 'Unknown Supervisor'}
+                      </h3>
+                      <p className="text-caption" style={{ fontSize: '0.75rem' }}>
+                        {request.supervisor?.department || 'Unknown Department'}
+                      </p>
+                    </div>
                   </div>
                   <StatusBadge status={request.status} />
                 </div>
@@ -141,7 +150,9 @@ export default function RequestsPage() {
                       padding: '10px 14px',
                       borderRadius: 'var(--radius-sm)',
                       background: 'var(--bg-secondary)',
-                      marginBottom: 12,
+                      marginBottom: 14,
+                      borderLeft: '3px solid var(--accent)',
+                      lineHeight: 1.55,
                     }}
                   >
                     {request.message}
@@ -149,14 +160,12 @@ export default function RequestsPage() {
                 )}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />
+                  <Clock size={13} strokeWidth={2} style={{ color: 'var(--text-tertiary)' }} />
                   <span className="text-caption" style={{ fontSize: '0.75rem' }}>
-                    Sent on {new Date(request.createdAt).toLocaleDateString('en-US', {
+                    Sent {new Date(request.createdAt).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
                     })}
                   </span>
                 </div>
@@ -166,20 +175,24 @@ export default function RequestsPage() {
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{
-                      marginTop: 12,
+                      marginTop: 14,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 8,
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-sm)',
+                      gap: 10,
+                      padding: '12px 16px',
+                      borderRadius: 'var(--radius-md)',
                       background: 'var(--success-soft)',
                       color: 'var(--success-text)',
                       fontSize: '0.8125rem',
                       fontWeight: 500,
                     }}
                   >
-                    <Info size={14} />
-                    Contact: {request.supervisor?.name} — {request.supervisor?.department}
+                    <CheckCircle size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
+                    <div>
+                      <span style={{ fontWeight: 600 }}>Accepted!</span> You can now contact{' '}
+                      <strong>{request.supervisor?.name}</strong> at{' '}
+                      <strong>{request.supervisor?.email || request.supervisor?.department}</strong>
+                    </div>
                   </motion.div>
                 )}
               </div>

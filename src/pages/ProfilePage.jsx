@@ -1,4 +1,4 @@
-import { Lightbulb, Save, UserRound, Shield, Key } from 'lucide-react'
+import { Lightbulb, Save, Shield, Key } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
