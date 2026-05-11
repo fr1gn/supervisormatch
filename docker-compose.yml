@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    volumes:
+      # Прокидываем папку data, чтобы db.json не стирался при перезапуске контейнера
+      - ./backend/data:/app/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Указываем реальный IP сервера, если деплоим на удаленный сервер
+        # Для локального запуска оставляем localhost
+        - VITE_API_URL=http://localhost:4000
+    ports:
+      # Фронтенд будет доступен по адресу http://localhost:80 (просто http://localhost)
+      - "80:80"
+    depends_on:
+      - backend

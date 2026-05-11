@@ -13,9 +13,7 @@ function getHeaders() {
 
 export async function apiRequest(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
-  
-  // Notice we include credentials: 'include' if we want to send refresh cookies
-  // Although the NestJS backend might require it for /auth/refresh, let's include it for auth routes.
+
   const fetchOptions = {
     ...options,
     headers: {
@@ -23,14 +21,11 @@ export async function apiRequest(endpoint, options = {}) {
       ...options.headers,
     },
   };
-  
-  // If we ever need to send credentials (cookies), we can uncomment this
-  // fetchOptions.credentials = 'include';
+
 
   try {
     const response = await fetch(url, fetchOptions);
-    
-    // Handle 204 No Content
+
     if (response.status === 204) {
       return { ok: true, data: null };
     }
