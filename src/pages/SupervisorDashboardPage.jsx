@@ -1,4 +1,4 @@
-import { Inbox, Plus, Trash2, Users, Clock, BookOpen } from 'lucide-react'
+import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
@@ -278,6 +278,8 @@ export default function SupervisorDashboardPage() {
                             borderRadius: 'var(--radius-sm)',
                             background: 'var(--bg-secondary)',
                             marginBottom: 12,
+                            borderLeft: '3px solid var(--accent)',
+                            lineHeight: 1.55,
                           }}
                         >
                           {request.message}
@@ -301,6 +303,7 @@ export default function SupervisorDashboardPage() {
                           className="btn btn-secondary btn-sm"
                           onClick={() => handleStatusUpdate(request.id, 'under review')}
                         >
+                          <Eye size={14} strokeWidth={2} />
                           Review
                         </button>
                         <button
@@ -308,6 +311,7 @@ export default function SupervisorDashboardPage() {
                           className="btn btn-primary btn-sm"
                           onClick={() => handleStatusUpdate(request.id, 'accepted')}
                         >
+                          <Check size={14} strokeWidth={2.5} />
                           Accept
                         </button>
                         <button
@@ -315,6 +319,7 @@ export default function SupervisorDashboardPage() {
                           className="btn btn-danger btn-sm"
                           onClick={() => handleStatusUpdate(request.id, 'rejected')}
                         >
+                          <X size={14} strokeWidth={2.5} />
                           Reject
                         </button>
                       </div>
