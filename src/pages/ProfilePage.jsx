@@ -23,10 +23,10 @@ function StudentProfile() {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault()
 
-    const result = updateStudentProfile(form)
+    const result = await updateStudentProfile(form)
     if (!result.ok) {
       setNotice(result.error)
       return
@@ -159,9 +159,9 @@ function SupervisorProfile() {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault()
-    const result = updateSupervisorProfile(form)
+    const result = await updateSupervisorProfile(form)
 
     if (!result.ok) {
       setNotice(result.error)

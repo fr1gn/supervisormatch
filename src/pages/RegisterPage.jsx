@@ -24,7 +24,7 @@ export default function RegisterPage() {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
 
     if (form.password.length < 6) {
@@ -42,7 +42,7 @@ export default function RegisterPage() {
       return
     }
 
-    const result = registerUser(form)
+    const result = await registerUser(form)
 
     if (!result.ok) {
       setError(result.error)

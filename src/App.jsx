@@ -77,10 +77,16 @@ function AppRoutes() {
   )
 }
 
+function AppContent() {
+  const { isInitializing } = useApp()
+  if (isInitializing) return null; // or a loading spinner
+  return <AppRoutes />
+}
+
 export default function App() {
   return (
     <AppProvider>
-      <AppRoutes />
+      <AppContent />
     </AppProvider>
   )
 }

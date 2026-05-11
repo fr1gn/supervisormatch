@@ -26,10 +26,10 @@ export default function SupervisorDashboardPage() {
   const pendingCount = requests.filter((item) => item.status === 'pending').length
   const slotsLeft = Math.max(0, (supervisor?.capacity || 8) - (supervisor?.currentStudents || 0))
 
-  const handleTopicCreate = (event) => {
+  const handleTopicCreate = async (event) => {
     event.preventDefault()
 
-    const result = addSupervisorTopic(topicDraft)
+    const result = await addSupervisorTopic(topicDraft)
 
     if (!result.ok) {
       setTopicNotice(result.error)
@@ -40,8 +40,8 @@ export default function SupervisorDashboardPage() {
     setTopicDraft({ title: '', area: '', description: '' })
   }
 
-  const handleStatusUpdate = (requestId, status) => {
-    updateRequestStatus(requestId, status)
+  const handleStatusUpdate = async (requestId, status) => {
+    await updateRequestStatus(requestId, status)
   }
 
   return (

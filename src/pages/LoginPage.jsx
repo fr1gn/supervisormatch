@@ -14,16 +14,16 @@ export default function LoginPage() {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    const result = loginUser(form)
+    const result = await loginUser(form)
 
     if (!result.ok) {
       setError(result.error)
       return
     }
 
-    navigate(result.role === 'supervisor' ? '/app/supervisor' : '/app/search')
+    navigate(result.data?.user?.role === 'supervisor' ? '/app/supervisor' : '/app/search')
   }
 
   return (

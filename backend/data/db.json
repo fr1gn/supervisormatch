@@ -2,18 +2,17 @@
   "users": [
     {
       "id": "usr-demo-student",
-      "fullName": "Alex Carter",
+      "fullName": "Alex Carter Updated",
       "email": "student@test.com",
       "role": "student",
       "passwordHash": "6365efb81a2331e0133caec38c4b35df8052f94ea468dd9964dcd9382e8564d5",
       "department": "Computer Science",
       "groupName": "CS-2024-A",
-      "phone": "+10000000000",
+      "phone": "+123456789",
       "studyLevel": "Final Year",
       "interests": "Artificial Intelligence, Learning Analytics",
       "bio": "Student interested in AI-supported education and recommendation systems.",
-      "createdAt": "2026-03-28T00:00:00.000Z",
-      "refreshTokenHash": "90a633ba1c769f257608deb289f734afde636bdfec0f7ca7782be2b77b190e98"
+      "createdAt": "2026-03-28T00:00:00.000Z"
     },
     {
       "id": "usr-demo-supervisor",
@@ -28,6 +27,20 @@
       "interests": "",
       "bio": "Specializing in AI and ML with 15+ years of research experience.",
       "createdAt": "2026-03-28T00:00:00.000Z"
+    },
+    {
+      "id": "usr-e29845d2-a701-4fe0-9fba-71e4ec329e06",
+      "fullName": "Demo Student",
+      "email": "student2@test.com",
+      "role": "student",
+      "passwordHash": "6365efb81a2331e0133caec38c4b35df8052f94ea468dd9964dcd9382e8564d5",
+      "department": "Computer Science",
+      "groupName": "",
+      "phone": "",
+      "studyLevel": "",
+      "interests": "",
+      "bio": "",
+      "createdAt": "2026-05-11T12:36:59.110Z"
     }
   ],
   "supervisors": [
@@ -45,7 +58,7 @@
         "Deep Learning"
       ],
       "capacity": 8,
-      "currentStudents": 5,
+      "currentStudents": 6,
       "avatar": "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=160&q=80",
       "bio": "Specializing in AI and ML with 15+ years of research experience.",
       "topics": [
@@ -74,9 +87,9 @@
       "studentName": "Alex Carter",
       "supervisorId": "sup-1",
       "message": "I am interested in AI for education and would like to work with your group.",
-      "status": "under review",
+      "status": "accepted",
       "createdAt": "2026-03-17T11:10:00.000Z",
-      "updatedAt": "2026-03-17T11:10:00.000Z"
+      "updatedAt": "2026-05-11T12:33:54.490Z"
     }
   ]
 }

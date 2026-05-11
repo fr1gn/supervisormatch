@@ -4,7 +4,7 @@ import StatusPill from '../components/StatusPill'
 import { useApp } from '../context/AppContext'
 
 export default function RequestsPage() {
-  const { session, requests, supervisors, cancelRequest } = useApp()
+  const { session, requests, supervisors } = useApp()
 
   if (session?.role === 'supervisor') {
     return <Navigate to="/app/supervisor" replace />
@@ -53,11 +53,7 @@ export default function RequestsPage() {
                 </p>
               ) : null}
 
-              <div className="request-actions">
-                <button type="button" className="ghost remove-btn inline-flex items-center" onClick={() => cancelRequest(request.id)}>
-                  Remove
-                </button>
-              </div>
+
             </article>
           ))}
         </div>

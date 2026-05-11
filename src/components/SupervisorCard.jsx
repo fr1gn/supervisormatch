@@ -11,8 +11,8 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
   const freeSlots = slotsLeft(supervisor)
   const percentage = Math.round((freeSlots / supervisor.capacity) * 100)
 
-  const handleSubmit = () => {
-    const result = onRequest({ supervisorId: supervisor.id, message })
+  const handleSubmit = async () => {
+    const result = await onRequest({ supervisorId: supervisor.id, message })
 
     if (!result.ok) {
       setNotice(result.error)
