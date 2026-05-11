@@ -9,7 +9,8 @@ lerna-debug.log*
 
 node_modules
 dist
-docs/BACKEND_DEFENCE_GUIDE.md
+backend/data/db.json
+.env
 dist-ssr
 *.local
 
