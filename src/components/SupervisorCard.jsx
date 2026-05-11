@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { MapPin, Users, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { MapPin, Users, Send, MessageSquare, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 
 function getInitials(name) {
   return name
@@ -38,34 +38,40 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
 
     setNotice('Request sent successfully!')
     setMessage('')
+    setIsExpanded(false)
     setIsSending(false)
+    setTimeout(() => setNotice(''), 4000)
   }
 
   return (
-    <motion.article
+    <article
       className="card card-interactive"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      style={{ display: 'flex', flexDirection: 'column' }}
+      style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
     >
-      <div className="card-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="card-body" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
           {supervisor.avatar ? (
             <img
               src={supervisor.avatar}
               alt={supervisor.name}
-              className="avatar-lg"
-              style={{ borderRadius: 'var(--radius-full)', objectFit: 'cover' }}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 'var(--radius-full)',
+                objectFit: 'cover',
+                flexShrink: 0,
+              }}
             />
           ) : (
-            <div className="avatar avatar-lg">{getInitials(supervisor.name)}</div>
+            <div className="avatar" style={{ width: 52, height: 52, fontSize: '1rem' }}>
+              {getInitials(supervisor.name)}
+            </div>
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3
               className="heading-subtitle"
-              style={{ fontSize: '1rem', marginBottom: 2 }}
+              style={{ fontSize: '1rem', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
             >
               {supervisor.name}
             </h3>
@@ -73,7 +79,7 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
               {supervisor.title}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <MapPin size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              <MapPin size={12} strokeWidth={2} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
               <span className="text-caption" style={{ fontSize: '0.75rem' }}>
                 {supervisor.department}
               </span>
@@ -91,6 +97,7 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
+              lineHeight: 1.55,
             }}
           >
             {supervisor.bio}
@@ -101,7 +108,7 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Users size={14} style={{ color: 'var(--text-tertiary)' }} />
+              <Users size={14} strokeWidth={2} style={{ color: 'var(--text-tertiary)' }} />
               <span className="text-caption">Availability</span>
             </div>
             <span
@@ -129,7 +136,7 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
               style={{
                 height: '100%',
                 borderRadius: 'var(--radius-full)',
-                background: isAvailable ? 'var(--accent-gradient)' : 'var(--danger)',
+                background: percentage > 50 ? 'var(--accent-gradient)' : percentage > 0 ? 'var(--warning)' : 'var(--danger)',
               }}
             />
           </div>
@@ -138,79 +145,95 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
         {/* Topics */}
         {supervisor.areas?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {supervisor.areas.map((topic) => (
+            {supervisor.areas.slice(0, 4).map((topic) => (
               <span key={topic} className="badge badge-accent" style={{ fontSize: '0.6875rem' }}>
                 {topic}
               </span>
             ))}
+            {supervisor.areas.length > 4 && (
+              <span className="badge badge-neutral" style={{ fontSize: '0.6875rem' }}>
+                +{supervisor.areas.length - 4}
+              </span>
+            )}
           </div>
         )}
 
-        {/* Expand/Collapse for request form */}
-        <div style={{ marginTop: 'auto' }}>
+        {/* Action Area */}
+        <div style={{ marginTop: 'auto', paddingTop: 4 }}>
+          {/* Expand/Collapse toggle */}
           {!hasActiveRequest && isAvailable && (
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              style={{ width: '100%', justifyContent: 'center', gap: 6, color: 'var(--accent)' }}
+              style={{ width: '100%', justifyContent: 'center', gap: 6, color: 'var(--accent)', marginBottom: 8 }}
             >
-              <MessageSquare size={14} />
-              {isExpanded ? 'Hide Message' : 'Write a Message'}
+              <MessageSquare size={14} strokeWidth={2} />
+              {isExpanded ? 'Hide Message' : 'Add a Message'}
               {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </button>
           )}
 
-          {isExpanded && !hasActiveRequest && isAvailable && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25 }}
-              style={{ marginTop: 10 }}
-            >
-              <textarea
-                className="input"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Write a short message to the supervisor..."
-                rows={3}
-                style={{ marginBottom: 10 }}
-              />
-            </motion.div>
-          )}
+          {/* Expandable message area */}
+          <AnimatePresence>
+            {isExpanded && !hasActiveRequest && isAvailable && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ overflow: 'hidden', marginBottom: 8 }}
+              >
+                <textarea
+                  className="input"
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Introduce yourself and your research interest..."
+                  rows={3}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
+          {/* Submit button */}
           <button
             type="button"
-            className={`btn ${hasActiveRequest ? 'btn-secondary' : 'btn-primary'} btn-sm`}
-            style={{ width: '100%', marginTop: 8 }}
+            className={`btn ${hasActiveRequest ? 'btn-success' : !isAvailable ? 'btn-secondary' : 'btn-primary'} btn-sm`}
+            style={{ width: '100%' }}
             onClick={handleSubmit}
             disabled={hasActiveRequest || !isAvailable || isSending}
           >
             {hasActiveRequest ? (
-              'Request Already Sent'
+              <>
+                <CheckCircle size={14} strokeWidth={2} />
+                Request Sent
+              </>
             ) : !isAvailable ? (
               'No Slots Available'
             ) : (
               <>
-                <Send size={14} />
+                <Send size={14} strokeWidth={2} />
                 {isSending ? 'Sending...' : 'Send Request'}
               </>
             )}
           </button>
 
-          {notice && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-caption"
-              style={{ marginTop: 8, textAlign: 'center', color: notice.includes('success') ? 'var(--success)' : 'var(--danger)' }}
-            >
-              {notice}
-            </motion.p>
-          )}
+          {/* Notice */}
+          <AnimatePresence>
+            {notice && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-caption"
+                style={{ marginTop: 8, textAlign: 'center', fontWeight: 500, color: notice.includes('success') ? 'var(--success)' : 'var(--danger)' }}
+              >
+                {notice}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </motion.article>
+    </article>
   )
 }

@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   GraduationCap,
   Search,
-  Compass,
+  FileText,
   LayoutDashboard,
-  HelpCircle,
+  Info,
   UserCircle,
   LogOut,
   Moon,
@@ -13,7 +13,7 @@ import {
   Menu,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { useTheme } from '../context/ThemeContext'
 import { PageTransition } from '../lib/animations'
@@ -50,7 +50,7 @@ function NavItem({ to, icon: Icon, label, onClick, isMobile, setMobileOpen }) {
           e.currentTarget.style.color = 'var(--text-secondary)'
         }}
       >
-        <Icon size={18} />
+        <Icon size={18} strokeWidth={1.75} />
         <span>{label}</span>
       </button>
     )
@@ -74,7 +74,7 @@ function NavItem({ to, icon: Icon, label, onClick, isMobile, setMobileOpen }) {
         transition: 'all var(--transition-fast)',
       })}
     >
-      <Icon size={18} />
+      <Icon size={18} strokeWidth={1.75} />
       <span>{label}</span>
     </NavLink>
   )
@@ -89,6 +89,23 @@ export default function AppLayout() {
 
   const isSupervisor = session?.role === 'supervisor'
 
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location.pathname])
+
+  // Prevent body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileOpen])
+
   const handleLogout = () => {
     logoutUser()
     navigate('/login')
@@ -98,13 +115,13 @@ export default function AppLayout() {
   const navItems = isSupervisor
     ? [
         { to: '/app/supervisor', icon: LayoutDashboard, label: 'Dashboard' },
-        { to: '/app/about', icon: HelpCircle, label: 'About' },
+        { to: '/app/about', icon: Info, label: 'About' },
         { to: '/app/profile', icon: UserCircle, label: 'Profile' },
       ]
     : [
         { to: '/app/search', icon: Search, label: 'Find Supervisors' },
-        { to: '/app/requests', icon: Compass, label: 'My Requests' },
-        { to: '/app/about', icon: HelpCircle, label: 'About' },
+        { to: '/app/requests', icon: FileText, label: 'My Requests' },
+        { to: '/app/about', icon: Info, label: 'About' },
         { to: '/app/profile', icon: UserCircle, label: 'Profile' },
       ]
 
@@ -125,6 +142,7 @@ export default function AppLayout() {
           left: 0,
           bottom: 0,
           zIndex: 40,
+          transition: 'background-color var(--transition-slow), border-color var(--transition-slow)',
         }}
       >
         {/* Brand */}
@@ -154,9 +172,10 @@ export default function AppLayout() {
               justifyContent: 'center',
               color: 'white',
               boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+              transition: 'transform var(--transition-spring)',
             }}
           >
-            <GraduationCap size={22} />
+            <GraduationCap size={22} strokeWidth={1.75} />
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -178,7 +197,7 @@ export default function AppLayout() {
         </nav>
 
         {/* Bottom Actions */}
-        <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '12px', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <NavItem
             onClick={toggleTheme}
             icon={theme === 'dark' ? Sun : Moon}
@@ -209,7 +228,19 @@ export default function AppLayout() {
           borderBottom: '1px solid var(--border)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          type="button"
+          onClick={() => navigate(isSupervisor ? '/app/supervisor' : '/app/search')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
           <div
             style={{
               width: 32,
@@ -222,19 +253,20 @@ export default function AppLayout() {
               color: 'white',
             }}
           >
-            <GraduationCap size={16} />
+            <GraduationCap size={16} strokeWidth={1.75} />
           </div>
-          <span style={{ fontWeight: 700, fontSize: '0.9375rem', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9375rem', fontFamily: "'Plus Jakarta Sans', sans-serif", color: 'var(--text-primary)' }}>
             SupervisorMatch
           </span>
-        </div>
+        </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button
             type="button"
             className="btn btn-ghost btn-icon"
             onClick={toggleTheme}
             style={{ width: 36, height: 36 }}
+            aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
@@ -243,6 +275,7 @@ export default function AppLayout() {
             className="btn btn-ghost btn-icon"
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{ width: 36, height: 36 }}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -262,7 +295,9 @@ export default function AppLayout() {
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'rgba(0, 0, 0, 0.4)',
+                background: 'rgba(0, 0, 0, 0.5)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
                 zIndex: 55,
               }}
             />
@@ -277,22 +312,28 @@ export default function AppLayout() {
                 right: 0,
                 bottom: 0,
                 width: 280,
+                maxWidth: 'calc(100vw - 60px)',
                 background: 'var(--surface)',
                 borderLeft: '1px solid var(--border)',
                 zIndex: 60,
                 display: 'flex',
                 flexDirection: 'column',
                 padding: '20px 12px',
+                boxShadow: 'var(--shadow-xl)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', marginBottom: 16 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.875rem', fontFamily: "'Plus Jakarta Sans', sans-serif", color: 'var(--text-primary)' }}>
+                  Menu
+                </span>
                 <button
                   type="button"
                   className="btn btn-ghost btn-icon"
                   onClick={() => setMobileOpen(false)}
-                  style={{ width: 36, height: 36 }}
+                  style={{ width: 32, height: 32 }}
+                  aria-label="Close menu"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
@@ -302,7 +343,7 @@ export default function AppLayout() {
                 ))}
               </nav>
 
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <NavItem
                   onClick={handleLogout}
                   icon={LogOut}
@@ -332,7 +373,7 @@ export default function AppLayout() {
             main { --mobile-header: 60px; }
           }
         `}</style>
-        <div className="container" style={{ paddingTop: 24, paddingBottom: 48 }}>
+        <div className="container" style={{ paddingTop: 28, paddingBottom: 56 }}>
           <PageTransition>
             <Outlet />
           </PageTransition>
