@@ -43,7 +43,10 @@ export async function apiRequest(endpoint, options = {}) {
 
     return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: err.message || 'Network error' };
+    const message = err.message?.includes('fetch')
+      ? 'Unable to connect to the server. Please check your connection and try again.'
+      : err.message || 'An unexpected error occurred.';
+    return { ok: false, error: message };
   }
 }
 
