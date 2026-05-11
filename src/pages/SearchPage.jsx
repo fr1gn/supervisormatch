@@ -72,7 +72,7 @@ export default function SearchPage() {
         style={{ marginBottom: 28 }}
       >
         <h1 className="heading-display" style={{ fontSize: '2rem', marginBottom: 6 }}>
-          Hi, {session?.fullName?.split(' ')[0] || 'Student'} 👋
+          Hi, {session?.fullName?.split(' ')[0] || 'Student'}
         </h1>
         <p className="text-body" style={{ fontSize: '1rem' }}>
           Find your perfect supervisor with smart filters and real-time availability.

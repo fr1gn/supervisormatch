@@ -1,4 +1,4 @@
-import { GraduationCap, Lightbulb, Mail, Workflow, Target, Sparkles, CheckCircle2 } from 'lucide-react'
+import { GraduationCap, Lightbulb, Mail, Workflow, Target, Sparkles, CheckCircle2, UserPlus, Search, Send, Handshake } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { staggerContainer, staggerItem } from '../lib/animations'
 
@@ -26,22 +26,22 @@ const steps = [
   {
     title: 'Create Your Account',
     text: 'Register as a student or supervisor. Complete your profile with relevant details.',
-    emoji: '📝',
+    icon: UserPlus,
   },
   {
     title: 'Search & Discover',
     text: 'Use advanced filters to find the perfect supervisor match for your research.',
-    emoji: '🔍',
+    icon: Search,
   },
   {
     title: 'Send Requests',
     text: 'Send personalized requests and track status through multiple stages.',
-    emoji: '📨',
+    icon: Send,
   },
   {
     title: 'Connect & Collaborate',
     text: 'Once accepted, access contact details and begin your research journey.',
-    emoji: '🤝',
+    icon: Handshake,
   },
 ]
 
@@ -254,7 +254,21 @@ export default function AboutPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: '1.5rem' }}>{step.emoji}</span>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--accent-soft)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--accent)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <step.icon size={18} strokeWidth={1.75} />
+                </div>
                 <span
                   style={{
                     width: 28,
