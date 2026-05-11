@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DataStore } from './lib/data-store';
+
 import { registerRoutes } from './lib/routes';
 
 async function bootstrap() {
@@ -16,12 +16,9 @@ async function bootstrap() {
     credentials: true,
   });
 
-  const store = new DataStore();
-  await store.ensureDbFile();
-
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.use(express.json());
-  registerRoutes(expressApp, store);
+  registerRoutes(expressApp, null);
 
   const port = Number(process.env.PORT || 4000);
   await app.listen(port);
