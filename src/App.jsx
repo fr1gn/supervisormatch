@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
 import AppLayout from './layouts/AppLayout'
 import AboutPage from './pages/AboutPage'
@@ -8,6 +9,7 @@ import RegisterPage from './pages/RegisterPage'
 import RequestsPage from './pages/RequestsPage'
 import SearchPage from './pages/SearchPage'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage'
+import LoadingSpinner from './components/LoadingSpinner'
 
 function RequireAuth({ children }) {
   const { session } = useApp()
@@ -77,9 +79,40 @@ function AppRoutes() {
   )
 }
 
+function InitScreen() {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 16,
+        }}
+      >
+        <LoadingSpinner size={28} style={{ color: 'var(--accent)' }} />
+        <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem', fontWeight: 500 }}>
+          Loading SupervisorMatch...
+        </p>
+      </motion.div>
+    </div>
+  )
+}
+
 function AppContent() {
   const { isInitializing } = useApp()
-  if (isInitializing) return null; // or a loading spinner
+  if (isInitializing) return <InitScreen />
   return <AppRoutes />
 }
 

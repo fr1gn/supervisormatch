@@ -1,7 +1,10 @@
-import { Inbox, Info } from 'lucide-react'
-import { Navigate } from 'react-router-dom'
-import StatusPill from '../components/StatusPill'
+import { Inbox, Info, Clock, ArrowRight } from 'lucide-react'
+import { Navigate, Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import StatusBadge from '../components/StatusBadge'
+import EmptyState from '../components/EmptyState'
 import { useApp } from '../context/AppContext'
+import { staggerContainer, staggerItem } from '../lib/animations'
 
 export default function RequestsPage() {
   const { session, requests, supervisors } = useApp()
@@ -18,45 +21,171 @@ export default function RequestsPage() {
     }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
+  const stats = {
+    total: studentRequests.length,
+    pending: studentRequests.filter(r => r.status === 'pending').length,
+    accepted: studentRequests.filter(r => r.status === 'accepted').length,
+    rejected: studentRequests.filter(r => r.status === 'rejected').length,
+  }
+
   return (
     <section>
-      <div className="block-title">
-        <h2>My Requests</h2>
-        <p>Track your supervisor requests across pending, under review, accepted, and rejected states.</p>
-      </div>
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        style={{ marginBottom: 28 }}
+      >
+        <h1 className="heading-display" style={{ fontSize: '2rem', marginBottom: 6 }}>
+          My Requests
+        </h1>
+        <p className="text-body" style={{ fontSize: '1rem' }}>
+          Track your supervisor requests and application statuses.
+        </p>
+      </motion.div>
 
-      {studentRequests.length === 0 ? (
-        <div className="empty-box">
-          <Inbox size={48} />
-          <h3>No requests yet</h3>
-          <p>Search for supervisors and send your first request.</p>
-        </div>
-      ) : (
-        <div className="request-list">
-          {studentRequests.map((request) => (
-            <article key={request.id} className="request-card">
-              <header>
-                <div>
-                  <h3>{request.supervisor?.name || 'Unknown Supervisor'}</h3>
-                  <p>{request.supervisor?.department || 'Unknown Department'}</p>
-                </div>
-                <StatusPill status={request.status} />
-              </header>
-
-              <p className="request-message">{request.message}</p>
-              <p className="request-time">Sent on {new Date(request.createdAt).toLocaleString()}</p>
-
-              {request.status === 'accepted' ? (
-                <p className="accepted-note">
-                  <Info size={14} />
-                  Contact available: {request.supervisor?.name} | {request.supervisor?.department}
-                </p>
-              ) : null}
-
-
-            </article>
+      {/* Stats */}
+      {studentRequests.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: 12,
+            marginBottom: 28,
+          }}
+        >
+          {[
+            { label: 'Total', value: stats.total, color: 'var(--text-primary)' },
+            { label: 'Pending', value: stats.pending, color: 'var(--warning)' },
+            { label: 'Accepted', value: stats.accepted, color: 'var(--success)' },
+            { label: 'Rejected', value: stats.rejected, color: 'var(--danger)' },
+          ].map(({ label, value, color }) => (
+            <div
+              key={label}
+              className="card"
+              style={{ padding: '16px 20px' }}
+            >
+              <p className="text-caption" style={{ marginBottom: 4 }}>{label}</p>
+              <p
+                className="heading-title"
+                style={{ fontSize: '1.5rem', color }}
+              >
+                {value}
+              </p>
+            </div>
           ))}
-        </div>
+        </motion.div>
+      )}
+
+      {/* List */}
+      {studentRequests.length === 0 ? (
+        <EmptyState
+          icon={Inbox}
+          title="No requests yet"
+          description="Start by searching for supervisors and sending your first request."
+          action={
+            <Link to="/app/search" className="btn btn-primary btn-sm">
+              Find Supervisors
+              <ArrowRight size={14} />
+            </Link>
+          }
+        />
+      ) : (
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          style={{ display: 'grid', gap: 12 }}
+        >
+          {studentRequests.map((request) => (
+            <motion.article
+              key={request.id}
+              variants={staggerItem}
+              className="card"
+              style={{ padding: 0 }}
+            >
+              <div style={{ padding: '20px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                    marginBottom: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <h3
+                      className="heading-subtitle"
+                      style={{ fontSize: '1rem', marginBottom: 2 }}
+                    >
+                      {request.supervisor?.name || 'Unknown Supervisor'}
+                    </h3>
+                    <p className="text-caption">
+                      {request.supervisor?.department || 'Unknown Department'}
+                    </p>
+                  </div>
+                  <StatusBadge status={request.status} />
+                </div>
+
+                {request.message && (
+                  <p
+                    className="text-body"
+                    style={{
+                      fontSize: '0.8125rem',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-secondary)',
+                      marginBottom: 12,
+                    }}
+                  >
+                    {request.message}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />
+                  <span className="text-caption" style={{ fontSize: '0.75rem' }}>
+                    Sent on {new Date(request.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+
+                {request.status === 'accepted' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      marginTop: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--success-soft)',
+                      color: 'var(--success-text)',
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                    }}
+                  >
+                    <Info size={14} />
+                    Contact: {request.supervisor?.name} — {request.supervisor?.department}
+                  </motion.div>
+                )}
+              </div>
+            </motion.article>
+          ))}
+        </motion.div>
       )}
     </section>
   )

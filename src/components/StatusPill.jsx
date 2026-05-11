@@ -1,10 +1,4 @@
-const classMap = {
-  pending: 'pending',
-  'under review': 'under-review',
-  accepted: 'accepted',
-  rejected: 'rejected',
-}
-
-export default function StatusPill({ status }) {
-  return <span className={`status-pill ${classMap[status]}`}>{status}</span>
-}
+// Legacy compatibility — re-exports StatusBadge as StatusPill
+// This file exists only for backward compatibility.
+// Use StatusBadge directly in new code.
+export { default } from './StatusBadge'

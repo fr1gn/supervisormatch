@@ -1,72 +1,342 @@
-import { CircleHelp, Compass, GraduationCap, LogOut, PanelsTopLeft, Search, UserRound } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  GraduationCap,
+  Search,
+  Compass,
+  LayoutDashboard,
+  HelpCircle,
+  UserCircle,
+  LogOut,
+  Moon,
+  Sun,
+  Menu,
+  X,
+} from 'lucide-react'
+import { useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { useTheme } from '../context/ThemeContext'
+import { PageTransition } from '../lib/animations'
+
+function NavItem({ to, icon: Icon, label, onClick, isMobile, setMobileOpen }) {
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: isMobile ? '12px 16px' : '10px 14px',
+          borderRadius: 'var(--radius-sm)',
+          border: 'none',
+          background: 'transparent',
+          color: 'var(--text-secondary)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          transition: 'all var(--transition-fast)',
+          width: '100%',
+          textAlign: 'left',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--surface-hover)'
+          e.currentTarget.style.color = 'var(--text-primary)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent'
+          e.currentTarget.style.color = 'var(--text-secondary)'
+        }}
+      >
+        <Icon size={18} />
+        <span>{label}</span>
+      </button>
+    )
+  }
+
+  return (
+    <NavLink
+      to={to}
+      onClick={() => isMobile && setMobileOpen?.(false)}
+      style={({ isActive }) => ({
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: isMobile ? '12px 16px' : '10px 14px',
+        borderRadius: 'var(--radius-sm)',
+        textDecoration: 'none',
+        fontSize: '0.875rem',
+        fontWeight: isActive ? 600 : 500,
+        color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+        background: isActive ? 'var(--accent-soft)' : 'transparent',
+        transition: 'all var(--transition-fast)',
+      })}
+    >
+      <Icon size={18} />
+      <span>{label}</span>
+    </NavLink>
+  )
+}
 
 export default function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { session, logoutUser } = useApp()
-  const homePath = session?.role === 'supervisor' ? '/app/supervisor' : '/app/search'
-  const shouldShowSectionTabs = location.pathname !== '/app/profile'
+  const { theme, toggleTheme } = useTheme()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const isSupervisor = session?.role === 'supervisor'
 
   const handleLogout = () => {
     logoutUser()
     navigate('/login')
+    setMobileOpen(false)
   }
 
+  const navItems = isSupervisor
+    ? [
+        { to: '/app/supervisor', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/app/about', icon: HelpCircle, label: 'About' },
+        { to: '/app/profile', icon: UserCircle, label: 'Profile' },
+      ]
+    : [
+        { to: '/app/search', icon: Search, label: 'Find Supervisors' },
+        { to: '/app/requests', icon: Compass, label: 'My Requests' },
+        { to: '/app/about', icon: HelpCircle, label: 'About' },
+        { to: '/app/profile', icon: UserCircle, label: 'Profile' },
+      ]
+
   return (
-    <div className="app-shell">
-      <header className="top-header">
-        <button type="button" className="brand-wrap brand-link" onClick={() => navigate(homePath)}>
-          <div className="brand-logo">
-            <GraduationCap size={20} strokeWidth={2.3} />
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      {/* Desktop Sidebar */}
+      <aside
+        className="hide-mobile"
+        style={{
+          width: 260,
+          flexShrink: 0,
+          background: 'var(--surface)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          zIndex: 40,
+        }}
+      >
+        {/* Brand */}
+        <button
+          type="button"
+          onClick={() => navigate(isSupervisor ? '/app/supervisor' : '/app/search')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '20px 20px 16px',
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontFamily: 'inherit',
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--accent-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)',
+            }}
+          >
+            <GraduationCap size={22} />
           </div>
           <div>
-            <h1>SupervisorMatch</h1>
-            <p>{session?.role === 'supervisor' ? 'Supervisor' : 'Student'}</p>
+            <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              SupervisorMatch
+            </h1>
+            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>
+              {session?.role || 'Student'} Portal
+            </p>
           </div>
         </button>
 
-        <nav className="main-links">
-          <NavLink to="/app/about">
-            <CircleHelp size={16} />
-            <span>About</span>
-          </NavLink>
-          <NavLink to="/app/profile">
-            <UserRound size={16} />
-            <span>Profile</span>
-          </NavLink>
-          <button type="button" onClick={handleLogout}>
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
+        <hr className="divider" style={{ margin: '0 20px' }} />
+
+        {/* Nav Items */}
+        <nav style={{ flex: 1, padding: '12px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {navItems.map((item) => (
+            <NavItem key={item.to} {...item} />
+          ))}
         </nav>
+
+        {/* Bottom Actions */}
+        <div style={{ padding: '12px', borderTop: '1px solid var(--border)' }}>
+          <NavItem
+            onClick={toggleTheme}
+            icon={theme === 'dark' ? Sun : Moon}
+            label={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          />
+          <NavItem
+            onClick={handleLogout}
+            icon={LogOut}
+            label="Sign Out"
+          />
+        </div>
+      </aside>
+
+      {/* Mobile Header */}
+      <header
+        className="show-mobile-only glass"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
+          zIndex: 50,
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+            }}
+          >
+            <GraduationCap size={16} />
+          </div>
+          <span style={{ fontWeight: 700, fontSize: '0.9375rem', fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            SupervisorMatch
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={toggleTheme}
+            style={{ width: 36, height: 36 }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={{ width: 36, height: 36 }}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </header>
 
-      {shouldShowSectionTabs ? (
-        <div className="section-tabs">
-          {session?.role === 'supervisor' ? (
-            <NavLink to="/app/supervisor">
-              <PanelsTopLeft size={16} />
-              <span>Dashboard</span>
-            </NavLink>
-          ) : (
-            <>
-              <NavLink to="/app/search">
-                <Search size={16} />
-                <span>Search</span>
-              </NavLink>
-              <NavLink to="/app/requests">
-                <Compass size={16} />
-                <span>Requests</span>
-              </NavLink>
-            </>
-          )}
-        </div>
-      ) : null}
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0, 0, 0, 0.4)',
+                zIndex: 55,
+              }}
+            />
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 280,
+                background: 'var(--surface)',
+                borderLeft: '1px solid var(--border)',
+                zIndex: 60,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '20px 12px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ width: 36, height: 36 }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
-      <main className="page-content">
-        <Outlet />
+              <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {navItems.map((item) => (
+                  <NavItem key={item.to} {...item} isMobile setMobileOpen={setMobileOpen} />
+                ))}
+              </nav>
+
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                <NavItem
+                  onClick={handleLogout}
+                  icon={LogOut}
+                  label="Sign Out"
+                  isMobile
+                />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <main
+        style={{
+          flex: 1,
+          marginLeft: 'var(--sidebar-width, 0)',
+          minHeight: '100vh',
+          paddingTop: 'var(--mobile-header, 0)',
+        }}
+      >
+        <style>{`
+          @media (min-width: 769px) {
+            main { --sidebar-width: 260px; }
+          }
+          @media (max-width: 768px) {
+            main { --mobile-header: 60px; }
+          }
+        `}</style>
+        <div className="container" style={{ paddingTop: 24, paddingBottom: 48 }}>
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
+        </div>
       </main>
     </div>
   )
