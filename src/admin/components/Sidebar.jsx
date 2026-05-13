@@ -27,7 +27,6 @@ const navItems = [
   { label: 'Departments', icon: Building2, path: '/admin/departments' },
   { label: 'Analytics', icon: BarChart3, path: '/admin/analytics' },
   { label: 'Notifications', icon: Bell, path: '/admin/notifications' },
-  { label: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
 function NavItem({ item, collapsed, onClick }) {
@@ -174,7 +173,7 @@ export default function Sidebar({ isOpen, isMobile, isCollapsed, toggle, close }
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 'var(--admin-text-md)', color: 'var(--admin-text-primary)', lineHeight: 1.2 }}>
-                  SupervisorMat
+                  SupervisorMatch
                 </div>
                 <div style={{ fontSize: 'var(--admin-text-xs)', color: 'var(--admin-text-tertiary)', fontWeight: 500 }}>
                   Admin Panel

@@ -26,10 +26,34 @@ function StudentProfile() {
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [uploading, setUploading] = useState(false)
+
   const onChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setNotice('')
+  }
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setNotice('Uploading photo...');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const { api } = await import('../lib/api');
+    const res = await api.postFormData('/upload', formData);
+
+    if (res.ok && res.data?.url) {
+      setForm(prev => ({ ...prev, avatar: res.data.url }));
+      setNotice('Photo uploaded! Click Save to apply.');
+    } else {
+      setNotice(res.error || 'Upload failed');
+    }
+    setUploading(false);
   }
 
   const onSubmit = async (event) => {
@@ -143,8 +167,8 @@ function StudentProfile() {
               <input className="input" id="groupName" name="groupName" value={form.groupName} onChange={onChange} />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="label" htmlFor="avatar">Avatar URL</label>
-              <input className="input" id="avatar" name="avatar" value={form.avatar} onChange={onChange} placeholder="https://example.com/photo.jpg" />
+              <label className="label" htmlFor="avatarFile">Profile Photo</label>
+              <input type="file" className="input" id="avatarFile" accept="image/*" onChange={handleFileChange} disabled={uploading} style={{ padding: '8px' }} />
             </div>
           </div>
 
@@ -276,10 +300,34 @@ function SupervisorProfile() {
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [uploading, setUploading] = useState(false)
+
   const onChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
     setNotice('')
+  }
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setNotice('Uploading photo...');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const { api } = await import('../lib/api');
+    const res = await api.postFormData('/upload', formData);
+
+    if (res.ok && res.data?.url) {
+      setForm(prev => ({ ...prev, avatar: res.data.url }));
+      setNotice('Photo uploaded! Click Save to apply.');
+    } else {
+      setNotice(res.error || 'Upload failed');
+    }
+    setUploading(false);
   }
 
   const onSubmit = async (event) => {
@@ -388,8 +436,8 @@ function SupervisorProfile() {
               <input className="input" id="department" name="department" value={form.department} onChange={onChange} required />
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
-              <label className="label" htmlFor="avatar">Avatar URL</label>
-              <input className="input" id="avatar" name="avatar" value={form.avatar} onChange={onChange} placeholder="https://example.com/photo.jpg" />
+              <label className="label" htmlFor="avatarFile">Profile Photo</label>
+              <input type="file" className="input" id="avatarFile" accept="image/*" onChange={handleFileChange} disabled={uploading} style={{ padding: '8px' }} />
             </div>
           </div>
 

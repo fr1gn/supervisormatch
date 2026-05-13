@@ -10,6 +10,26 @@ import {
 } from './auth';
 import { AuthedRequest, JwtPayload } from './types';
 import { prisma } from './prisma';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({ storage: storage });
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2),
@@ -99,6 +119,15 @@ function mustUser(req: AuthedRequest): JwtPayload {
 }
 
 export function registerRoutes(app: any, store: any): void {
+  // upload
+  app.post('/upload', requireAuth, upload.single('file'), (req: any, res: any) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const url = `http://localhost:4000/uploads/${req.file.filename}`;
+    res.json({ url });
+  });
+
   // auth/register
   app.post('/auth/register', asyncRoute(async (req, res) => {
     const parsed = registerSchema.safeParse(req.body);

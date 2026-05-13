@@ -9,7 +9,6 @@ import ApplicationsPage from '../pages/ApplicationsPage';
 import DepartmentsPage from '../pages/DepartmentsPage';
 import AnalyticsPage from '../pages/AnalyticsPage';
 import NotificationsPage from '../pages/NotificationsPage';
-import SettingsPage from '../pages/SettingsPage';
 
 function AdminAuthGate({ children }) {
   const token = localStorage.getItem('admin_token');
@@ -57,7 +56,6 @@ export function getAdminRoutes() {
         <Route path="departments" element={<DepartmentsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </>
   );

@@ -584,29 +584,4 @@ export function registerAdminRoutes(app: any): void {
     res.json({ success: true });
   }));
 
-  // ── SETTINGS ───────────────────────────────────────────────────────
-  
-  let adminProfileState = {
-    name: 'Administrator',
-    email: `${process.env.ADMIN_LOGIN || 'admin'}@supervisormatch.local`,
-    role: 'Super Admin',
-    phone: '',
-    avatar: '',
-  };
-
-  app.get('/admin/settings', requireAdmin, asyncRoute(async (_req, res) => {
-    res.json({
-      data: {
-        profile: adminProfileState,
-        preferences: {},
-      },
-    });
-  }));
-
-  app.patch('/admin/settings', requireAdmin, asyncRoute(async (req, res) => {
-    if (req.body?.profile) {
-      adminProfileState = { ...adminProfileState, ...req.body.profile };
-    }
-    res.json({ success: true, message: 'Settings updated' });
-  }));
 }
