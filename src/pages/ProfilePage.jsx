@@ -285,7 +285,11 @@ function SupervisorProfile() {
   const onSubmit = async (event) => {
     event.preventDefault()
     setSaving(true)
-    const result = await updateSupervisorProfile(form)
+    const payload = {
+      ...form,
+      areas: form.areas.split(',').map(s => s.trim()).filter(Boolean),
+    }
+    const result = await updateSupervisorProfile(payload)
 
     if (!result.ok) {
       setNotice(result.error)
