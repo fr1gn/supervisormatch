@@ -1,4 +1,4 @@
-# Backend Integration Guide — SupervisorMat Admin Panel
+# Backend Integration Guide — SupervisorMatch Admin Panel
 
 This guide provides everything a backend developer needs to connect the admin panel frontend to a real API.
 
@@ -471,7 +471,7 @@ For each page:
 VITE_API_URL=http://localhost:3000/api/v1
 
 # .env.production
-VITE_API_URL=https://api.supervisormat.com/api/v1
+VITE_API_URL=https://api.supervisormatch.com/api/v1
 ```
 
 ---
@@ -597,7 +597,7 @@ CREATE TABLE notifications (
 ```javascript
 // Express CORS setup
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://supervisormat.com'],
+  origin: ['http://localhost:5173', 'https://supervisormatch.com'],
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
