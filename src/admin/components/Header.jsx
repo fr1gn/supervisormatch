@@ -4,7 +4,7 @@ import { SidebarTrigger } from './Sidebar';
 import { getInitials, stringToColor } from '../utils/helpers';
 
 export default function Header({ isMobile, onMenuClick, title, subtitle }) {
-  const adminName = 'Alex Morgan';
+  const adminName = 'Administrator';
   const unreadCount = 3;
 
   return (

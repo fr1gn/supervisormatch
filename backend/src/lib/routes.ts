@@ -14,21 +14,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
-  }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 const registerSchema = z.object({
@@ -55,7 +41,7 @@ const updateUserSchema = z.object({
   bio: z.string().trim().optional(),
   title: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).optional(),
-  avatar: z.string().trim().url().or(z.literal('')).optional(),
+  avatar: z.string().trim().optional(),
 });
 
 const updateSupervisorSchema = z.object({
@@ -65,7 +51,7 @@ const updateSupervisorSchema = z.object({
   phone: z.string().trim().optional(),
   bio: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).min(1),
-  avatar: z.string().trim().url().or(z.literal('')).optional(),
+  avatar: z.string().trim().optional(),
 });
 
 const addTopicSchema = z.object({
@@ -124,7 +110,8 @@ export function registerRoutes(app: any, store: any): void {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
-    const url = `http://localhost:4000/uploads/${req.file.filename}`;
+    const base64 = req.file.buffer.toString('base64');
+    const url = `data:${req.file.mimetype};base64,${base64}`;
     res.json({ url });
   });
 
@@ -365,6 +352,7 @@ export function registerRoutes(app: any, store: any): void {
         phone: parsed.data.phone || '',
         bio: parsed.data.bio || '',
         areas: parsed.data.areas,
+        avatar: parsed.data.avatar ?? supervisor.avatar,
       },
       include: { topics: true }
     });
@@ -375,7 +363,8 @@ export function registerRoutes(app: any, store: any): void {
         fullName: parsed.data.name,
         department: parsed.data.department,
         phone: parsed.data.phone || '',
-        bio: parsed.data.bio || ''
+        bio: parsed.data.bio || '',
+        avatar: parsed.data.avatar ?? '',
       }
     });
 
