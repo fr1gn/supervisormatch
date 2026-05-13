@@ -10,6 +10,8 @@ import RequestsPage from './pages/RequestsPage'
 import SearchPage from './pages/SearchPage'
 import SupervisorDashboardPage from './pages/SupervisorDashboardPage'
 import LoadingSpinner from './components/LoadingSpinner'
+import { getAdminRoutes } from './admin/routes'
+import { AdminThemeProvider } from './admin/hooks/useAdminTheme'
 
 function RequireAuth({ children }) {
   const { session } = useApp()
@@ -74,6 +76,9 @@ function AppRoutes() {
         <Route path="profile" element={<ProfilePage />} />
       </Route>
 
+      {/* Admin Panel Routes */}
+      {getAdminRoutes()}
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -118,8 +123,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AdminThemeProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AdminThemeProvider>
   )
 }
