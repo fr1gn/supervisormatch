@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Bell,
@@ -10,9 +10,9 @@ import {
   Check,
   CheckCheck,
 } from 'lucide-react';
-import { notifications as mockNotifications } from '../data/mockData';
+import { adminApi } from '../api/client';
 import { timeAgo } from '../utils/helpers';
-import { Card } from '../components/ui';
+import { Card, Skeleton } from '../components/ui';
 
 const typeConfig = {
   application: { icon: FileText, color: 'var(--admin-info)', bg: 'var(--admin-info-subtle)' },
@@ -137,7 +137,15 @@ function NotificationItem({ notification, index, onMarkRead }) {
 }
 
 export default function NotificationsPage() {
-  const [notifs, setNotifs] = useState(mockNotifications);
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.getNotifications()
+      .then(res => setNotifs(res.data || []))
+      .catch(() => setNotifs([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const unread = notifs.filter(n => !n.read);

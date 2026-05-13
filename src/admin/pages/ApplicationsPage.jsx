@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -11,8 +11,8 @@ import {
   Send,
   Eye,
 } from 'lucide-react';
-import { applications } from '../data/mockData';
-import { Avatar, StatusBadge, SearchInput, Card, FilterSelect } from '../components/ui';
+import { adminApi } from '../api/client';
+import { Avatar, StatusBadge, SearchInput, Card, FilterSelect, Skeleton } from '../components/ui';
 import { formatDate, timeAgo } from '../utils/helpers';
 
 const priorityColors = {
@@ -28,9 +28,36 @@ const timelineIcons = {
   rejected: { icon: XCircle, color: 'var(--admin-danger)' },
 };
 
-function ApplicationCard({ application, index }) {
+function ApplicationCard({ application, index, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const priority = priorityColors[application.priority] || priorityColors.medium;
+
+  const handleApprove = async (e) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      await adminApi.approveApplication(application.id);
+      onStatusChange && onStatusChange();
+    } catch (err) {
+      console.error('Approve failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReject = async (e) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      await adminApi.rejectApplication(application.id);
+      onStatusChange && onStatusChange();
+    } catch (err) {
+      console.error('Reject failed:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   return (
     <motion.div
@@ -222,6 +249,8 @@ function ApplicationCard({ application, index }) {
                 <div style={{ display: 'flex', gap: 10, marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--admin-border-subtle)' }}>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
+                    onClick={handleApprove}
+                    disabled={actionLoading}
                     style={{
                       flex: 1,
                       padding: '10px 20px',
@@ -239,10 +268,12 @@ function ApplicationCard({ application, index }) {
                       gap: 6,
                     }}
                   >
-                    <CheckCircle2 size={16} /> Approve
+                    <CheckCircle2 size={16} /> {actionLoading ? '...' : 'Approve'}
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.95 }}
+                    onClick={handleReject}
+                    disabled={actionLoading}
                     style={{
                       flex: 1,
                       padding: '10px 20px',
@@ -260,7 +291,7 @@ function ApplicationCard({ application, index }) {
                       gap: 6,
                     }}
                   >
-                    <XCircle size={16} /> Reject
+                    <XCircle size={16} /> {actionLoading ? '...' : 'Reject'}
                   </motion.button>
                 </div>
               ) : null}
@@ -276,8 +307,20 @@ export default function ApplicationsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
   const [priorityFilter, setPriorityFilter] = useState(null);
+  const [allApplications, setAllApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = applications.filter(app => {
+  const fetchApplications = () => {
+    setLoading(true);
+    adminApi.getApplications({ pageSize: '100' })
+      .then(res => setAllApplications(res.data || []))
+      .catch(() => setAllApplications([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchApplications(); }, []);
+
+  const filtered = allApplications.filter(app => {
     if (statusFilter && app.status !== statusFilter) return false;
     if (priorityFilter && app.priority !== priorityFilter) return false;
     if (search) {
@@ -328,9 +371,17 @@ export default function ApplicationsPage() {
 
       {/* Application Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {filtered.map((app, i) => (
-          <ApplicationCard key={app.id} application={app} index={i} />
-        ))}
+        {loading ? (
+          [1,2,3].map(i => <Skeleton key={i} style={{ height: 150, borderRadius: 'var(--admin-radius-xl)' }} />)
+        ) : filtered.length === 0 ? (
+          <Card>
+            <p style={{ textAlign: 'center', color: 'var(--admin-text-tertiary)', padding: 20 }}>No applications found</p>
+          </Card>
+        ) : (
+          filtered.map((app, i) => (
+            <ApplicationCard key={app.id} application={app} index={i} onStatusChange={fetchApplications} />
+          ))
+        )}
       </div>
     </div>
   );

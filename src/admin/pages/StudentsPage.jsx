@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MoreHorizontal, Eye, Edit, Trash2, ChevronUp, ChevronDown, Download } from 'lucide-react';
-import { students } from '../data/mockData';
-import { useTableState } from '../hooks/useTableState';
-import { Avatar, StatusBadge, SearchInput, Pagination, FilterSelect, Modal, Card } from '../components/ui';
+import { adminApi } from '../api/client';
+import { Avatar, StatusBadge, SearchInput, Pagination, FilterSelect, Modal, Card, Skeleton } from '../components/ui';
 import { formatDate } from '../utils/helpers';
 
 function SortHeader({ label, sortKey, sortConfig, onSort }) {
@@ -124,23 +123,53 @@ function ActionDropdown({ student, onView }) {
 
 export default function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [data, setData] = useState([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [filters, setFilters] = useState({});
+  const [loading, setLoading] = useState(true);
+  const pageSize = 6;
 
-  const {
-    data,
-    totalItems,
-    totalPages,
-    currentPage,
-    setCurrentPage,
-    search,
-    handleSearch,
-    sortConfig,
-    handleSort,
-    filters,
-    handleFilter,
-  } = useTableState(students, {
-    searchKeys: ['name', 'email', 'studentId', 'department'],
-    pageSize: 6,
-  });
+  const fetchStudents = () => {
+    setLoading(true);
+    const params = {
+      page: String(currentPage),
+      pageSize: String(pageSize),
+      search,
+      sortBy: sortConfig.key,
+      sortDir: sortConfig.direction,
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.program ? { program: filters.program } : {}),
+    };
+    adminApi.getStudents(params)
+      .then(res => {
+        setData(res.data || []);
+        setTotalItems(res.pagination?.total || 0);
+        setTotalPages(res.pagination?.totalPages || 1);
+      })
+      .catch(() => {
+        setData([]);
+        setTotalItems(0);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchStudents(); }, [currentPage, search, sortConfig, filters]);
+
+  const handleSearch = (val) => { setSearch(val); setCurrentPage(1); };
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+  const handleFilter = (key, val) => {
+    setFilters(prev => ({ ...prev, [key]: val }));
+    setCurrentPage(1);
+  };
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>

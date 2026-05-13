@@ -320,6 +320,11 @@ export default function Sidebar({ isOpen, isMobile, isCollapsed, toggle, close }
           {/* Logout */}
           <motion.button
             whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              localStorage.removeItem('admin_token');
+              localStorage.removeItem('admin_user');
+              window.location.href = '/admin/login';
+            }}
             style={{
               display: 'flex',
               alignItems: 'center',

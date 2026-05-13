@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Users, GraduationCap, FolderOpen, MoreHorizontal, Plus } from 'lucide-react';
-import { departments } from '../data/mockData';
-import { Card } from '../components/ui';
+import { adminApi } from '../api/client';
+import { Card, Skeleton } from '../components/ui';
 
 function DepartmentCard({ dept, index }) {
   return (
@@ -109,6 +110,16 @@ function DepartmentCard({ dept, index }) {
 }
 
 export default function DepartmentsPage() {
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.getDepartments()
+      .then(res => setDepartments(res.data || []))
+      .catch(() => setDepartments([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Header */}
@@ -147,9 +158,12 @@ export default function DepartmentsPage() {
           gap: 16,
         }}
       >
-        {departments.map((dept, i) => (
-          <DepartmentCard key={dept.id} dept={dept} index={i} />
-        ))}
+        {loading
+          ? [1,2,3].map(i => <Skeleton key={i} style={{ height: 200, borderRadius: 'var(--admin-radius-xl)' }} />)
+          : departments.map((dept, i) => (
+              <DepartmentCard key={dept.id} dept={dept} index={i} />
+            ))
+        }
       </div>
     </div>
   );

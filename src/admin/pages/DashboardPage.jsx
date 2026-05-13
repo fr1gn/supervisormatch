@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   GraduationCap,
@@ -13,8 +14,8 @@ import {
   Zap,
   UserPlus,
 } from 'lucide-react';
-import { StatCard, Card, Avatar, StatusBadge } from '../components/ui';
-import { dashboardStats, activityFeed, analyticsData } from '../data/mockData';
+import { StatCard, Card, Avatar, StatusBadge, Skeleton } from '../components/ui';
+import { adminApi } from '../api/client';
 import { timeAgo } from '../utils/helpers';
 
 const iconMap = {
@@ -34,7 +35,8 @@ const activityIcons = {
 };
 
 function MiniBarChart({ data }) {
-  const maxVal = Math.max(...data.map(d => d.applications));
+  if (!data || data.length === 0) return null;
+  const maxVal = Math.max(...data.map(d => d.applications), 1);
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80 }}>
       {data.map((d, i) => (
@@ -123,6 +125,37 @@ function QuickAction({ icon: Icon, label, color, index }) {
 }
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      adminApi.getDashboardStats().catch(() => ({ data: [] })),
+      adminApi.getActivityFeed().catch(() => ({ data: [] })),
+      adminApi.getAnalytics().catch(() => ({ data: null })),
+    ]).then(([statsRes, activityRes, analyticsRes]) => {
+      setStats(statsRes.data || []);
+      setActivity(activityRes.data || []);
+      setAnalytics(analyticsRes.data || null);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {[1,2,3,4].map(i => <Skeleton key={i} style={{ height: 120, borderRadius: 'var(--admin-radius-lg)' }} />)}
+        </div>
+      </div>
+    );
+  }
+
+  const weeklyMetrics = analytics?.weeklyMetrics || { newStudents: 0, completedMatches: 0, avgResponseTime: 'N/A', satisfactionScore: 0 };
+  const monthlyApplications = analytics?.monthlyApplications || [];
+
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Stats Grid */}
@@ -134,7 +167,7 @@ export default function DashboardPage() {
           marginBottom: 24,
         }}
       >
-        {dashboardStats.map((stat, i) => (
+        {stats.map((stat, i) => (
           <StatCard
             key={stat.id}
             {...stat}
@@ -177,7 +210,12 @@ export default function DashboardPage() {
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {activityFeed.map((item, i) => {
+            {activity.length === 0 && (
+              <p style={{ fontSize: 'var(--admin-text-sm)', color: 'var(--admin-text-tertiary)', textAlign: 'center', padding: 20 }}>
+                No recent activity
+              </p>
+            )}
+            {activity.map((item, i) => {
               const actIcon = activityIcons[item.type] || activityIcons.system;
               const Icon = actIcon.icon;
               return (
@@ -190,7 +228,7 @@ export default function DashboardPage() {
                     display: 'flex',
                     gap: 12,
                     padding: '12px 0',
-                    borderBottom: i < activityFeed.length - 1 ? '1px solid var(--admin-border-subtle)' : 'none',
+                    borderBottom: i < activity.length - 1 ? '1px solid var(--admin-border-subtle)' : 'none',
                   }}
                 >
                   <div
@@ -228,20 +266,22 @@ export default function DashboardPage() {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h3 style={{ fontSize: 'var(--admin-text-md)', fontWeight: 700, color: 'var(--admin-text-primary)', margin: 0 }}>
-              Monthly Applications
+              Applications Overview
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--admin-success)', fontSize: 'var(--admin-text-xs)', fontWeight: 600 }}>
-              <TrendingUp size={14} /> +18.2%
+              <TrendingUp size={14} /> Live Data
             </div>
           </div>
-          <MiniBarChart data={analyticsData.monthlyApplications} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            {analyticsData.monthlyApplications.map(d => (
-              <span key={d.month} style={{ fontSize: 'var(--admin-text-xs)', color: 'var(--admin-text-quaternary)', flex: 1, textAlign: 'center' }}>
-                {d.month}
-              </span>
-            ))}
-          </div>
+          <MiniBarChart data={monthlyApplications} />
+          {monthlyApplications.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              {monthlyApplications.map(d => (
+                <span key={d.month} style={{ fontSize: 'var(--admin-text-xs)', color: 'var(--admin-text-quaternary)', flex: 1, textAlign: 'center' }}>
+                  {d.month}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Weekly Metrics */}
           <div
@@ -255,10 +295,10 @@ export default function DashboardPage() {
             }}
           >
             {[
-              { label: 'New Students', value: analyticsData.weeklyMetrics.newStudents },
-              { label: 'Matches', value: analyticsData.weeklyMetrics.completedMatches },
-              { label: 'Avg Response', value: analyticsData.weeklyMetrics.avgResponseTime },
-              { label: 'Satisfaction', value: analyticsData.weeklyMetrics.satisfactionScore + '/5' },
+              { label: 'Students', value: weeklyMetrics.newStudents },
+              { label: 'Matches', value: weeklyMetrics.completedMatches },
+              { label: 'Avg Response', value: weeklyMetrics.avgResponseTime },
+              { label: 'Satisfaction', value: weeklyMetrics.satisfactionScore + '/5' },
             ].map((m, i) => (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 'var(--admin-text-xl)', fontWeight: 800, color: 'var(--admin-text-primary)' }}>

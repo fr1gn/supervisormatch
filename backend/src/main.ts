@@ -6,6 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 import { registerRoutes } from './lib/routes';
+import { registerAdminRoutes } from './lib/admin-routes';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,6 +20,7 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.use(express.json());
   registerRoutes(expressApp, null);
+  registerAdminRoutes(expressApp);
 
   const port = Number(process.env.PORT || 4000);
   await app.listen(port);

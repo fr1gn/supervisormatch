@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
 import { Star, Mail, BookOpen, Users as UsersIcon } from 'lucide-react';
-import { supervisors } from '../data/mockData';
-import { Avatar, StatusBadge, SearchInput, Card, FilterSelect } from '../components/ui';
-import { useState, useMemo } from 'react';
+import { adminApi } from '../api/client';
+import { Avatar, StatusBadge, SearchInput, Card, FilterSelect, Skeleton } from '../components/ui';
+import { useState, useEffect, useMemo } from 'react';
 
 function SupervisorCard({ supervisor, index }) {
   const slotPercentage = supervisor.totalSlots > 0
@@ -145,22 +145,31 @@ function SupervisorCard({ supervisor, index }) {
 export default function SupervisorsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(null);
+  const [allSupervisors, setAllSupervisors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.getSupervisors({ pageSize: '100' })
+      .then(res => setAllSupervisors(res.data || []))
+      .catch(() => setAllSupervisors([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let result = [...supervisors];
+    let result = [...allSupervisors];
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(s =>
         s.name.toLowerCase().includes(q) ||
         s.department.toLowerCase().includes(q) ||
-        s.specializations.some(sp => sp.toLowerCase().includes(q))
+        (s.specializations || []).some(sp => sp.toLowerCase().includes(q))
       );
     }
     if (statusFilter) {
       result = result.filter(s => s.status === statusFilter);
     }
     return result;
-  }, [search, statusFilter]);
+  }, [search, statusFilter, allSupervisors]);
 
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>

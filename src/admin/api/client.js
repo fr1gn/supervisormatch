@@ -1,11 +1,11 @@
 /**
- * API Client stub — ready for backend integration.
+ * API Client — connected to the real backend.
  *
- * Replace the mock implementations with actual fetch calls.
- * See BACKEND_INTEGRATION_GUIDE.md for expected endpoints.
+ * All admin endpoints are JWT-protected.
+ * Token is stored in localStorage as 'admin_token'.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 /**
  * Base fetch wrapper with auth token handling
@@ -26,6 +26,7 @@ async function request(endpoint, options = {}) {
 
   if (response.status === 401) {
     localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
     window.location.href = '/admin/login';
     return;
   }
@@ -39,18 +40,22 @@ async function request(endpoint, options = {}) {
 }
 
 /**
- * API methods — currently return mock data.
- * Replace with real `request()` calls when backend is ready.
+ * API methods — connected to real backend endpoints.
  */
 export const adminApi = {
   // Auth
   login: (credentials) => request('/admin/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
-  logout: () => request('/admin/auth/logout', { method: 'POST' }),
+  logout: () => {
+    request('/admin/auth/logout', { method: 'POST' }).catch(() => {});
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    window.location.href = '/admin/login';
+  },
   getProfile: () => request('/admin/auth/profile'),
 
   // Dashboard
   getDashboardStats: () => request('/admin/dashboard/stats'),
-  getActivityFeed: (params) => request(`/admin/dashboard/activity?${new URLSearchParams(params)}`),
+  getActivityFeed: (params) => request(`/admin/dashboard/activity${params ? '?' + new URLSearchParams(params) : ''}`),
 
   // Students
   getStudents: (params) => request(`/admin/students?${new URLSearchParams(params)}`),
@@ -75,7 +80,7 @@ export const adminApi = {
   updateDepartment: (id, data) => request(`/admin/departments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Analytics
-  getAnalytics: (params) => request(`/admin/analytics?${new URLSearchParams(params)}`),
+  getAnalytics: (params) => request(`/admin/analytics${params ? '?' + new URLSearchParams(params) : ''}`),
 
   // Notifications
   getNotifications: () => request('/admin/notifications'),

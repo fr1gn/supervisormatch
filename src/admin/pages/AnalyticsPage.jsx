@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Users, BarChart3, PieChart, Activity } from 'lucide-react';
-import { analyticsData, departments } from '../data/mockData';
-import { Card } from '../components/ui';
+import { adminApi } from '../api/client';
+import { Card, Skeleton } from '../components/ui';
 
 function MetricWidget({ label, value, icon: Icon, change, index }) {
   const isPositive = change >= 0;
@@ -107,8 +108,9 @@ function BarChartPlaceholder({ data, label }) {
   );
 }
 
-function DepartmentDistribution() {
-  const maxCount = Math.max(...analyticsData.departmentDistribution.map(d => d.count));
+function DepartmentDistribution({ analyticsData }) {
+  if (!analyticsData?.departmentDistribution) return null;
+  const maxCount = Math.max(...analyticsData.departmentDistribution.map(d => d.count), 1);
 
   return (
     <Card>
@@ -146,7 +148,7 @@ function DepartmentDistribution() {
                 style={{
                   height: '100%',
                   borderRadius: 'var(--admin-radius-full)',
-                  background: departments.find(dep => dep.name.startsWith(d.department.split('.')[0]))?.color || 'var(--admin-accent)',
+                  background: 'var(--admin-accent)',
                 }}
               />
             </div>
@@ -157,7 +159,8 @@ function DepartmentDistribution() {
   );
 }
 
-function SupervisorLoadChart() {
+function SupervisorLoadChart({ analyticsData }) {
+  if (!analyticsData?.supervisorLoad) return null;
   return (
     <Card>
       <h3 style={{ fontSize: 'var(--admin-text-md)', fontWeight: 700, color: 'var(--admin-text-primary)', margin: '0 0 20px' }}>
@@ -211,6 +214,28 @@ function SupervisorLoadChart() {
 }
 
 export default function AnalyticsPage() {
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    adminApi.getAnalytics()
+      .then(res => setAnalytics(res.data || null))
+      .catch(() => setAnalytics(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !analytics) {
+    return (
+      <div style={{ maxWidth: 1400, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {[1,2,3,4].map(i => <Skeleton key={i} style={{ height: 120, borderRadius: 'var(--admin-radius-lg)' }} />)}
+        </div>
+      </div>
+    );
+  }
+
+  const summary = analytics.summary || {};
+
   return (
     <div style={{ maxWidth: 1400, margin: '0 auto' }}>
       {/* Metrics */}
@@ -222,10 +247,10 @@ export default function AnalyticsPage() {
           marginBottom: 24,
         }}
       >
-        <MetricWidget label="Total Applications" value="334" icon={BarChart3} change={18.2} index={0} />
-        <MetricWidget label="Approval Rate" value="73.6%" icon={Activity} change={5.4} index={1} />
-        <MetricWidget label="Avg. Match Time" value="2.4d" icon={PieChart} change={-12.3} index={2} />
-        <MetricWidget label="Active Users" value="1,247" icon={Users} change={8.7} index={3} />
+        <MetricWidget label="Total Applications" value={summary.totalApplications || 0} icon={BarChart3} change={0} index={0} />
+        <MetricWidget label="Approval Rate" value={summary.approvalRate || '0%'} icon={Activity} index={1} />
+        <MetricWidget label="Pending Review" value={summary.pendingReview || 0} icon={PieChart} index={2} />
+        <MetricWidget label="Active Users" value={summary.activeUsers || 0} icon={Users} index={3} />
       </div>
 
       {/* Charts Grid */}
@@ -237,12 +262,18 @@ export default function AnalyticsPage() {
           marginBottom: 20,
         }}
       >
-        <BarChartPlaceholder data={analyticsData.monthlyApplications} label="Application Outcomes" />
-        <DepartmentDistribution />
+        {analytics.monthlyApplications && analytics.monthlyApplications.length > 0 && (
+          <BarChartPlaceholder data={analytics.monthlyApplications} label="Application Outcomes" />
+        )}
+        {analytics.departmentDistribution && analytics.departmentDistribution.length > 0 && (
+          <DepartmentDistribution analyticsData={analytics} />
+        )}
       </div>
 
       {/* Supervisor Load */}
-      <SupervisorLoadChart />
+      {analytics.supervisorLoad && analytics.supervisorLoad.length > 0 && (
+        <SupervisorLoadChart analyticsData={analytics} />
+      )}
     </div>
   );
 }
