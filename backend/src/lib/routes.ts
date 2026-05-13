@@ -35,6 +35,7 @@ const updateUserSchema = z.object({
   bio: z.string().trim().optional(),
   title: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).optional(),
+  avatar: z.string().trim().url().or(z.literal('')).optional(),
 });
 
 const updateSupervisorSchema = z.object({
@@ -44,6 +45,7 @@ const updateSupervisorSchema = z.object({
   phone: z.string().trim().optional(),
   bio: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).min(1),
+  avatar: z.string().trim().url().or(z.literal('')).optional(),
 });
 
 const addTopicSchema = z.object({
@@ -250,6 +252,7 @@ export function registerRoutes(app: any, store: any): void {
         studyLevel: updates.studyLevel,
         interests: updates.interests,
         bio: updates.bio,
+        avatar: updates.avatar,
       }
     });
 
@@ -262,7 +265,8 @@ export function registerRoutes(app: any, store: any): void {
           phone: updates.phone,
           bio: updates.bio,
           title: updates.title,
-          areas: updates.areas && updates.areas.length > 0 ? updates.areas : undefined
+          areas: updates.areas && updates.areas.length > 0 ? updates.areas : undefined,
+          avatar: updates.avatar,
         }
       }).catch(() => {});
     }

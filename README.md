@@ -38,36 +38,35 @@ JWT_SECRET="super-secret-key-for-local-development"
 
 ### 2. Local Development (Running without Docker)
 
-To run the project locally, you need to start both the backend and frontend servers in separate terminal windows.
+To run the project locally, you can now start both the backend and frontend servers with a single command.
 
-#### Step 2.1: Start the Backend
+#### Step 2.1: Initialize the Database
 
-Open a terminal and navigate to the backend directory:
+Open a terminal and navigate to the backend directory to set up the database schema:
 ```bash
 cd backend
 
 # 1. Install all dependencies
 npm install
 
-# 2. Generate Prisma client (required for database access)
+# 2. Push the database schema and generate Prisma client
+npx prisma db push
 npx prisma generate
-
-# 3. Start the development server
-npm run start:dev
 ```
-The backend API will now be running at `http://localhost:4000`.
 
-#### Step 2.2: Start the Frontend
+#### Step 2.2: Start the Application
 
-Open a **new** terminal window in the root of the project:
+Navigate back to the root of the project:
 ```bash
-# 1. Install frontend dependencies
+cd ..
+
+# 1. Install frontend dependencies and the concurrently package
 npm install
 
-# 2. Start the Vite development server
-npm run dev
+# 2. Start both the backend and frontend simultaneously
+npm start
 ```
-The web application will be available at `http://localhost:5173`.
+The web application will be available at `http://localhost:5173` and the backend at `http://localhost:4000`.
 
 ### 3. Running with Docker
 

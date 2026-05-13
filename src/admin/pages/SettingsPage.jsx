@@ -1,107 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import {
-  User,
-  Shield,
-  Bell as BellIcon,
-  Palette,
-  Globe,
-  Lock,
-  Mail,
-  Save,
-} from 'lucide-react';
+import { User, Save } from 'lucide-react';
 import { Card, Avatar } from '../components/ui';
-
-function ToggleSwitch({ checked, onChange }) {
-  return (
-    <motion.button
-      onClick={() => onChange(!checked)}
-      style={{
-        width: 44,
-        height: 24,
-        borderRadius: 'var(--admin-radius-full)',
-        background: checked ? 'var(--admin-accent)' : 'var(--admin-bg-tertiary)',
-        border: 'none',
-        cursor: 'pointer',
-        position: 'relative',
-        padding: 2,
-        transition: 'background var(--admin-transition-fast)',
-      }}
-    >
-      <motion.div
-        animate={{ x: checked ? 20 : 0 }}
-        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          background: '#fff',
-          boxShadow: 'var(--admin-shadow-sm)',
-        }}
-      />
-    </motion.button>
-  );
-}
-
-function SettingRow({ label, description, children }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '16px 0',
-        borderBottom: '1px solid var(--admin-border-subtle)',
-        gap: 24,
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 'var(--admin-text-sm)', fontWeight: 600, color: 'var(--admin-text-primary)', marginBottom: 2 }}>
-          {label}
-        </div>
-        {description && (
-          <div style={{ fontSize: 'var(--admin-text-xs)', color: 'var(--admin-text-tertiary)' }}>
-            {description}
-          </div>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function SettingsSection({ icon: Icon, title, children, index }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08 }}
-    >
-      <Card style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--admin-border)' }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 'var(--admin-radius-md)',
-              background: 'var(--admin-accent-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--admin-accent)',
-            }}
-          >
-            <Icon size={18} />
-          </div>
-          <h3 style={{ fontSize: 'var(--admin-text-md)', fontWeight: 700, color: 'var(--admin-text-primary)', margin: 0 }}>
-            {title}
-          </h3>
-        </div>
-        {children}
-      </Card>
-    </motion.div>
-  );
-}
+import { adminApi } from '../api/client';
 
 function TextInput({ label, value, onChange, type = 'text', placeholder }) {
   return (
@@ -143,35 +44,83 @@ function TextInput({ label, value, onChange, type = 'text', placeholder }) {
   );
 }
 
+function SettingsSection({ icon: Icon, title, children, index }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+    >
+      <Card style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--admin-border)' }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 'var(--admin-radius-md)',
+              background: 'var(--admin-accent-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--admin-accent)',
+            }}
+          >
+            <Icon size={18} />
+          </div>
+          <h3 style={{ fontSize: 'var(--admin-text-md)', fontWeight: 700, color: 'var(--admin-text-primary)', margin: 0 }}>
+            {title}
+          </h3>
+        </div>
+        {children}
+      </Card>
+    </motion.div>
+  );
+}
+
 export default function SettingsPage() {
   const [profile, setProfile] = useState({
-    name: 'Alex Morgan',
-    email: 'alex.morgan@university.edu',
+    name: '',
+    email: '',
     role: 'Super Admin',
-    phone: '+1 (555) 123-4567',
+    phone: '',
+    avatar: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [prefs, setPrefs] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    weeklyReport: true,
-    darkMode: false,
-    compactView: false,
-    twoFactorAuth: false,
-    autoApprove: false,
-    maintenanceMode: false,
-  });
+  useEffect(() => {
+    adminApi.getSettings().then(res => {
+      if (res?.data?.profile) {
+        setProfile(res.data.profile);
+      }
+    }).finally(() => setLoading(false));
+  }, []);
 
-  const togglePref = (key) => {
-    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await adminApi.updateSettings({ profile });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center', padding: 40 }}>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Profile Section */}
       <SettingsSection icon={User} title="Profile" index={0}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
-          <Avatar name={profile.name} size={72} />
+          <Avatar name={profile.name} size={72} src={profile.avatar} />
           <div>
             <div style={{ fontSize: 'var(--admin-text-lg)', fontWeight: 700, color: 'var(--admin-text-primary)', marginBottom: 2 }}>
               {profile.name}
@@ -179,23 +128,6 @@ export default function SettingsPage() {
             <div style={{ fontSize: 'var(--admin-text-sm)', color: 'var(--admin-text-tertiary)' }}>
               {profile.role}
             </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              style={{
-                marginTop: 8,
-                padding: '6px 14px',
-                borderRadius: 'var(--admin-radius-md)',
-                border: '1px solid var(--admin-border)',
-                background: 'none',
-                fontSize: 'var(--admin-text-xs)',
-                fontWeight: 600,
-                color: 'var(--admin-text-secondary)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Change Photo
-            </motion.button>
           </div>
         </div>
 
@@ -217,102 +149,37 @@ export default function SettingsPage() {
             onChange={(v) => setProfile(p => ({ ...p, phone: v }))}
           />
           <TextInput
-            label="Role"
-            value={profile.role}
-            onChange={() => {}}
+            label="Avatar URL"
+            value={profile.avatar || ''}
+            onChange={(v) => setProfile(p => ({ ...p, avatar: v }))}
+            placeholder="https://example.com/avatar.jpg"
           />
         </div>
       </SettingsSection>
 
-      {/* Notifications */}
-      <SettingsSection icon={BellIcon} title="Notifications" index={1}>
-        <SettingRow label="Email Notifications" description="Receive email for new applications and updates">
-          <ToggleSwitch checked={prefs.emailNotifications} onChange={() => togglePref('emailNotifications')} />
-        </SettingRow>
-        <SettingRow label="Push Notifications" description="Browser push notifications for urgent alerts">
-          <ToggleSwitch checked={prefs.pushNotifications} onChange={() => togglePref('pushNotifications')} />
-        </SettingRow>
-        <SettingRow label="Weekly Report" description="Receive a summary email every Monday">
-          <ToggleSwitch checked={prefs.weeklyReport} onChange={() => togglePref('weeklyReport')} />
-        </SettingRow>
-      </SettingsSection>
-
-      {/* Appearance */}
-      <SettingsSection icon={Palette} title="Appearance" index={2}>
-        <SettingRow label="Dark Mode" description="Switch between light and dark themes">
-          <ToggleSwitch checked={prefs.darkMode} onChange={() => togglePref('darkMode')} />
-        </SettingRow>
-        <SettingRow label="Compact View" description="Reduce padding and spacing for dense layouts">
-          <ToggleSwitch checked={prefs.compactView} onChange={() => togglePref('compactView')} />
-        </SettingRow>
-      </SettingsSection>
-
-      {/* Security */}
-      <SettingsSection icon={Shield} title="Security" index={3}>
-        <SettingRow label="Two-Factor Authentication" description="Add extra security to your account">
-          <ToggleSwitch checked={prefs.twoFactorAuth} onChange={() => togglePref('twoFactorAuth')} />
-        </SettingRow>
-        <SettingRow label="Change Password" description="Update your admin account password">
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 'var(--admin-radius-md)',
-              border: '1px solid var(--admin-border)',
-              background: 'none',
-              fontSize: 'var(--admin-text-sm)',
-              fontWeight: 600,
-              color: 'var(--admin-text-secondary)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Lock size={14} /> Change
-          </motion.button>
-        </SettingRow>
-      </SettingsSection>
-
-      {/* System */}
-      <SettingsSection icon={Globe} title="System" index={4}>
-        <SettingRow label="Auto-Approve Applications" description="Automatically approve applications that meet criteria">
-          <ToggleSwitch checked={prefs.autoApprove} onChange={() => togglePref('autoApprove')} />
-        </SettingRow>
-        <SettingRow label="Maintenance Mode" description="Disable public access temporarily">
-          <ToggleSwitch checked={prefs.maintenanceMode} onChange={() => togglePref('maintenanceMode')} />
-        </SettingRow>
-      </SettingsSection>
-
-      {/* Save Button */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8, marginBottom: 24 }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
         <motion.button
           whileTap={{ scale: 0.95 }}
-          whileHover={{ boxShadow: 'var(--admin-shadow-md)' }}
+          onClick={handleSave}
+          disabled={saving}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            padding: '12px 28px',
+            padding: '12px 24px',
             borderRadius: 'var(--admin-radius-md)',
             border: 'none',
             background: 'var(--admin-accent)',
             color: '#fff',
-            fontWeight: 700,
+            fontWeight: 600,
             fontSize: 'var(--admin-text-sm)',
             cursor: 'pointer',
             fontFamily: 'inherit',
           }}
         >
-          <Save size={16} /> Save Changes
+          <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
         </motion.button>
-      </motion.div>
+      </div>
     </div>
   );
 }

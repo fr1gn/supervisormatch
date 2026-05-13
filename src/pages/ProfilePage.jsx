@@ -21,6 +21,7 @@ function StudentProfile() {
     studyLevel: student?.studyLevel || '',
     interests: student?.interests || '',
     bio: student?.bio || '',
+    avatar: student?.avatar || '',
   })
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
@@ -82,9 +83,23 @@ function StudentProfile() {
             gap: 16,
           }}
         >
-          <div className="avatar avatar-xl" style={{ fontSize: '1.25rem' }}>
-            {getInitials(form.fullName)}
-          </div>
+          {form.avatar ? (
+            <img
+              src={form.avatar}
+              alt={form.fullName}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 'var(--radius-full)',
+                objectFit: 'cover',
+                border: '2px solid var(--border)',
+              }}
+            />
+          ) : (
+            <div className="avatar avatar-xl" style={{ fontSize: '1.25rem' }}>
+              {getInitials(form.fullName)}
+            </div>
+          )}
           <div>
             <h3 className="heading-subtitle" style={{ fontSize: '1.125rem', marginBottom: 2 }}>
               {form.fullName || 'Student'}
@@ -126,6 +141,10 @@ function StudentProfile() {
             <div>
               <label className="label" htmlFor="groupName">Group Name</label>
               <input className="input" id="groupName" name="groupName" value={form.groupName} onChange={onChange} />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="label" htmlFor="avatar">Avatar URL</label>
+              <input className="input" id="avatar" name="avatar" value={form.avatar} onChange={onChange} placeholder="https://example.com/photo.jpg" />
             </div>
           </div>
 
@@ -248,6 +267,7 @@ function SupervisorProfile() {
       department: supervisor?.department || session?.department || '',
       areas: (supervisor?.areas || []).join(', '),
       bio: supervisor?.bio || '',
+      avatar: supervisor?.avatar || '',
     }),
     [supervisor, session],
   )
@@ -313,9 +333,9 @@ function SupervisorProfile() {
             gap: 16,
           }}
         >
-          {supervisor?.avatar ? (
+          {form.avatar ? (
             <img
-              src={supervisor.avatar}
+              src={form.avatar}
               alt={form.name}
               style={{
                 width: 72,
@@ -362,6 +382,10 @@ function SupervisorProfile() {
             <div>
               <label className="label" htmlFor="department">Department</label>
               <input className="input" id="department" name="department" value={form.department} onChange={onChange} required />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="label" htmlFor="avatar">Avatar URL</label>
+              <input className="input" id="avatar" name="avatar" value={form.avatar} onChange={onChange} placeholder="https://example.com/photo.jpg" />
             </div>
           </div>
 
