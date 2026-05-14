@@ -58,12 +58,14 @@ function asyncRoute(handler: (req: AuthedRequest, res: Response) => Promise<any>
 
 function paginate<T>(items: T[], page: number, pageSize: number) {
   const total = items.length;
-  const totalPages = Math.ceil(total / pageSize);
-  const start = (page - 1) * pageSize;
-  const data = items.slice(start, start + pageSize);
+  const safePage = (!page || isNaN(page) || page < 1) ? 1 : page;
+  const safePageSize = (!pageSize || isNaN(pageSize) || pageSize < 1) ? 10 : pageSize;
+  const totalPages = Math.ceil(total / safePageSize);
+  const start = (safePage - 1) * safePageSize;
+  const data = items.slice(start, start + safePageSize);
   return {
     data,
-    pagination: { page, pageSize, total, totalPages },
+    pagination: { page: safePage, pageSize: safePageSize, total, totalPages },
   };
 }
 
