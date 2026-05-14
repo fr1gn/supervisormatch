@@ -1,23 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Users, Send, MessageSquare, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
-
-function getInitials(name) {
-  return name
-    ?.split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) || '??'
-}
-
-function slotsLeft(supervisor) {
-  return Math.max(0, supervisor.capacity - supervisor.currentStudents)
-}
+import { useToast } from '../context/ToastContext'
+import { getInitials, slotsLeft } from '../lib/utils'
 
 export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest }) {
+  const toast = useToast()
   const [message, setMessage] = useState('')
-  const [notice, setNotice] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSending, setIsSending] = useState(false)
 
@@ -31,16 +20,15 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
     const result = await onRequest({ supervisorId: supervisor.id, message })
 
     if (!result.ok) {
-      setNotice(result.error)
+      toast.error(result.error || 'Failed to send request.')
       setIsSending(false)
       return
     }
 
-    setNotice('Request sent successfully!')
+    toast.success(`Request sent to ${supervisor.name}!`)
     setMessage('')
     setIsExpanded(false)
     setIsSending(false)
-    setTimeout(() => setNotice(''), 4000)
   }
 
   return (
@@ -160,7 +148,6 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
 
         {/* Action Area */}
         <div style={{ marginTop: 'auto', paddingTop: 4 }}>
-          {/* Expand/Collapse toggle */}
           {!hasActiveRequest && isAvailable && (
             <button
               type="button"
@@ -174,7 +161,6 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
             </button>
           )}
 
-          {/* Expandable message area */}
           <AnimatePresence>
             {isExpanded && !hasActiveRequest && isAvailable && (
               <motion.div
@@ -195,7 +181,6 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
             )}
           </AnimatePresence>
 
-          {/* Submit button */}
           <button
             type="button"
             className={`btn ${hasActiveRequest ? 'btn-success' : !isAvailable ? 'btn-secondary' : 'btn-primary'} btn-sm`}
@@ -217,21 +202,6 @@ export default function SupervisorCard({ supervisor, onRequest, hasActiveRequest
               </>
             )}
           </button>
-
-          {/* Notice */}
-          <AnimatePresence>
-            {notice && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-caption"
-                style={{ marginTop: 8, textAlign: 'center', fontWeight: 500, color: notice.includes('success') ? 'var(--success)' : 'var(--danger)' }}
-              >
-                {notice}
-              </motion.p>
-            )}
-          </AnimatePresence>
         </div>
       </div>
     </article>

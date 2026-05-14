@@ -5,14 +5,13 @@ import { motion } from 'framer-motion'
 import SupervisorCard from '../components/SupervisorCard'
 import EmptyState from '../components/EmptyState'
 import { useApp } from '../context/AppContext'
+import { slotsLeft } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
 
-function slotsLeft(supervisor) {
-  return Math.max(0, supervisor.capacity - supervisor.currentStudents)
-}
+
 
 export default function SearchPage() {
-  const { session, supervisors, requests, sendRequest } = useApp()
+  const { session, supervisors, requests, sendRequest, isInitializing } = useApp()
   const [showFilters, setShowFilters] = useState(false)
 
   const [filters, setFilters] = useState({
@@ -253,7 +252,38 @@ export default function SearchPage() {
       </div>
 
       {/* Grid */}
-      {filteredSupervisors.length === 0 ? (
+      {isInitializing && supervisors.length === 0 ? (
+        <div
+          style={{
+            display: 'grid',
+            gap: 16,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))',
+          }}
+        >
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="card"
+              style={{ padding: 20, height: 320 }}
+            >
+              <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
+                <div style={{ width: 52, height: 52, borderRadius: 'var(--radius-full)', background: 'var(--bg-secondary)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ width: '70%', height: 14, borderRadius: 4, background: 'var(--bg-secondary)', marginBottom: 8 }} />
+                  <div style={{ width: '50%', height: 10, borderRadius: 4, background: 'var(--bg-secondary)' }} />
+                </div>
+              </div>
+              <div style={{ width: '100%', height: 10, borderRadius: 4, background: 'var(--bg-secondary)', marginBottom: 8 }} />
+              <div style={{ width: '80%', height: 10, borderRadius: 4, background: 'var(--bg-secondary)', marginBottom: 20 }} />
+              <div style={{ width: '100%', height: 6, borderRadius: 4, background: 'var(--bg-secondary)', marginBottom: 20 }} />
+              <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ width: 60, height: 22, borderRadius: 'var(--radius-full)', background: 'var(--bg-secondary)' }} />
+                <div style={{ width: 70, height: 22, borderRadius: 'var(--radius-full)', background: 'var(--bg-secondary)' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredSupervisors.length === 0 ? (
         <EmptyState
           icon={SearchIcon}
           title="No supervisors found"

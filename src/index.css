@@ -612,3 +612,40 @@ button:focus:not(:focus-visible) {
     font-size: 0.875rem;
   }
 }
+
+/* ===== SKELETON SHIMMER ===== */
+@keyframes skeleton-shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.5; }
+}
+
+.card > div[style*="background: var(--bg-secondary)"],
+.card div[style*="background: var(--bg-secondary)"] {
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}

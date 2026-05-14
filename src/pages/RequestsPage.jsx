@@ -1,14 +1,13 @@
-import { Inbox, CheckCircle, Clock, ArrowRight, Mail } from 'lucide-react'
+import { Inbox, CheckCircle, Clock, ArrowRight } from 'lucide-react'
 import { Navigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { useApp } from '../context/AppContext'
+import { getInitials } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
 
-function getInitials(name) {
-  return name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
-}
+
 
 export default function RequestsPage() {
   const { session, requests, supervisors } = useApp()

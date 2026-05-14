@@ -4,11 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { useApp } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
+import { useConfirm } from '../components/ConfirmDialog'
+import { getInitials, slotsLeft } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
-
-function getInitials(name) {
-  return name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
-}
 
 export default function SupervisorDashboardPage() {
   const {
@@ -20,9 +19,11 @@ export default function SupervisorDashboardPage() {
     removeSupervisorTopic,
   } = useApp()
 
+  const toast = useToast()
+  const confirm = useConfirm()
   const [activeTab, setActiveTab] = useState('requests')
   const [topicDraft, setTopicDraft] = useState({ title: '', area: '', description: '' })
-  const [topicNotice, setTopicNotice] = useState('')
+  const [topicSaving, setTopicSaving] = useState(false)
 
   const supervisor = getCurrentSupervisor()
 
@@ -33,24 +34,59 @@ export default function SupervisorDashboardPage() {
   const pendingCount = requests.filter((item) => item.status === 'pending').length
   const reviewCount = requests.filter((item) => item.status === 'under review').length
   const acceptedCount = requests.filter((item) => item.status === 'accepted').length
-  const slotsLeft = Math.max(0, (supervisor?.capacity || 8) - (supervisor?.currentStudents || 0))
+  const slots = slotsLeft(supervisor)
 
   const handleTopicCreate = async (event) => {
     event.preventDefault()
+    setTopicSaving(true)
     const result = await addSupervisorTopic(topicDraft)
 
     if (!result.ok) {
-      setTopicNotice(result.error)
+      toast.error(result.error || 'Failed to add topic.')
+      setTopicSaving(false)
       return
     }
 
-    setTopicNotice('Topic added successfully.')
+    toast.success('Topic added successfully!')
     setTopicDraft({ title: '', area: '', description: '' })
-    setTimeout(() => setTopicNotice(''), 3000)
+    setTopicSaving(false)
   }
 
-  const handleStatusUpdate = async (requestId, status) => {
-    await updateRequestStatus(requestId, status)
+  const handleTopicRemove = async (topicId, topicTitle) => {
+    const ok = await confirm({
+      title: 'Remove Topic',
+      message: `Are you sure you want to remove "${topicTitle}"? This cannot be undone.`,
+      confirmLabel: 'Remove',
+      variant: 'danger',
+    })
+    if (!ok) return
+    await removeSupervisorTopic(topicId)
+    toast.success('Topic removed.')
+  }
+
+  const handleStatusUpdate = async (requestId, status, studentName) => {
+    const isAccept = status === 'accepted'
+    const ok = await confirm({
+      title: isAccept ? 'Accept Student' : 'Reject Student',
+      message: isAccept
+        ? `Accept ${studentName || 'this student'}? They will be assigned to you.`
+        : `Reject ${studentName || 'this student'}? They will be notified.`,
+      confirmLabel: isAccept ? 'Accept' : 'Reject',
+      variant: isAccept ? 'info' : 'danger',
+    })
+    if (!ok) return
+
+    const result = await updateRequestStatus(requestId, status)
+    if (result?.ok !== false) {
+      toast.success(isAccept ? 'Student accepted!' : 'Request rejected.')
+    } else {
+      toast.error(result.error || 'Failed to update status.')
+    }
+  }
+
+  const handleReview = async (requestId) => {
+    await updateRequestStatus(requestId, 'under review')
+    toast.info('Marked as under review.')
   }
 
   const tabs = [
@@ -94,7 +130,6 @@ export default function SupervisorDashboardPage() {
           </div>
         </div>
 
-        {/* Topic tags */}
         {supervisor?.areas?.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
             {supervisor.areas.map((area) => (
@@ -119,7 +154,7 @@ export default function SupervisorDashboardPage() {
         }}
       >
         {[
-          { icon: Users, label: 'Available Slots', value: `${slotsLeft}/${supervisor?.capacity || 8}`, color: slotsLeft > 0 ? 'var(--success)' : 'var(--danger)' },
+          { icon: Users, label: 'Available Slots', value: `${slots}/${supervisor?.capacity || 8}`, color: slots > 0 ? 'var(--success)' : 'var(--danger)' },
           { icon: Clock, label: 'Pending', value: pendingCount, color: 'var(--warning)' },
           { icon: BookOpen, label: 'Under Review', value: reviewCount, color: 'var(--accent)' },
           { icon: Users, label: 'Accepted', value: acceptedCount, color: 'var(--success)' },
@@ -298,30 +333,36 @@ export default function SupervisorDashboardPage() {
                       </div>
 
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleStatusUpdate(request.id, 'under review')}
-                        >
-                          <Eye size={14} strokeWidth={2} />
-                          Review
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => handleStatusUpdate(request.id, 'accepted')}
-                        >
-                          <Check size={14} strokeWidth={2.5} />
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleStatusUpdate(request.id, 'rejected')}
-                        >
-                          <X size={14} strokeWidth={2.5} />
-                          Reject
-                        </button>
+                        {request.status === 'pending' && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleReview(request.id)}
+                          >
+                            <Eye size={14} strokeWidth={2} />
+                            Review
+                          </button>
+                        )}
+                        {request.status !== 'accepted' && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleStatusUpdate(request.id, 'accepted', request.studentName)}
+                          >
+                            <Check size={14} strokeWidth={2.5} />
+                            Accept
+                          </button>
+                        )}
+                        {request.status !== 'rejected' && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleStatusUpdate(request.id, 'rejected', request.studentName)}
+                          >
+                            <X size={14} strokeWidth={2.5} />
+                            Reject
+                          </button>
+                        )}
                       </div>
                     </div>
                   </motion.article>
@@ -392,23 +433,10 @@ export default function SupervisorDashboardPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <button type="submit" className="btn btn-primary btn-sm">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={topicSaving}>
                     <Plus size={16} />
-                    Add Topic
+                    {topicSaving ? 'Adding...' : 'Add Topic'}
                   </button>
-                  {topicNotice && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="text-caption"
-                      style={{
-                        color: topicNotice.includes('success') ? 'var(--success)' : 'var(--danger)',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {topicNotice}
-                    </motion.span>
-                  )}
                 </div>
               </form>
             </div>
@@ -452,7 +480,7 @@ export default function SupervisorDashboardPage() {
                     <button
                       type="button"
                       className="btn btn-danger btn-xs"
-                      onClick={() => removeSupervisorTopic(topic.id)}
+                      onClick={() => handleTopicRemove(topic.id, topic.title)}
                     >
                       <Trash2 size={12} />
                       Remove

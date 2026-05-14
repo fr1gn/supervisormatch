@@ -2,14 +2,15 @@ import { Lightbulb, Save, Shield, Key } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
+import { useToast } from '../context/ToastContext'
+import { getInitials } from '../lib/utils'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-function getInitials(name) {
-  return name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '??'
-}
+
 
 function StudentProfile() {
   const { session, getCurrentStudent, updateStudentProfile } = useApp()
+  const toast = useToast()
   const student = getCurrentStudent()
 
   const [form, setForm] = useState({
@@ -23,7 +24,6 @@ function StudentProfile() {
     bio: student?.bio || '',
     avatar: student?.avatar || '',
   })
-  const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
 
   const [uploading, setUploading] = useState(false)
@@ -31,7 +31,6 @@ function StudentProfile() {
   const onChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
-    setNotice('')
   }
 
   const handleFileChange = async (event) => {
@@ -62,14 +61,13 @@ function StudentProfile() {
 
     const result = await updateStudentProfile(form)
     if (!result.ok) {
-      setNotice(result.error)
+      toast.error(result.error || 'Failed to save profile.')
       setSaving(false)
       return
     }
 
-    setNotice('Profile updated successfully.')
+    toast.success('Profile updated successfully!')
     setSaving(false)
-    setTimeout(() => setNotice(''), 3000)
   }
 
   return (
@@ -202,19 +200,6 @@ function StudentProfile() {
               {saving ? <LoadingSpinner size={16} /> : <Save size={16} />}
               Save Changes
             </button>
-            {notice && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-caption"
-                style={{
-                  color: notice.includes('success') ? 'var(--success)' : 'var(--danger)',
-                  fontWeight: 500,
-                }}
-              >
-                {notice}
-              </motion.span>
-            )}
           </div>
         </form>
       </motion.div>
@@ -280,6 +265,7 @@ function StudentProfile() {
 
 function SupervisorProfile() {
   const { session, getCurrentSupervisor, updateSupervisorProfile } = useApp()
+  const toast = useToast()
   const supervisor = getCurrentSupervisor()
 
   const initialState = useMemo(
@@ -297,7 +283,6 @@ function SupervisorProfile() {
   )
 
   const [form, setForm] = useState(initialState)
-  const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
 
   const [uploading, setUploading] = useState(false)
@@ -305,7 +290,6 @@ function SupervisorProfile() {
   const onChange = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
-    setNotice('')
   }
 
   const handleFileChange = async (event) => {
@@ -313,7 +297,7 @@ function SupervisorProfile() {
     if (!file) return;
 
     setUploading(true);
-    setNotice('Uploading photo...');
+    toast.info('Uploading photo...');
     
     const formData = new FormData();
     formData.append('file', file);
@@ -323,9 +307,9 @@ function SupervisorProfile() {
 
     if (res.ok && res.data?.url) {
       setForm(prev => ({ ...prev, avatar: res.data.url }));
-      setNotice('Photo uploaded! Click Save to apply.');
+      toast.success('Photo uploaded! Click Save to apply.');
     } else {
-      setNotice(res.error || 'Upload failed');
+      toast.error(res.error || 'Upload failed');
     }
     setUploading(false);
   }
@@ -340,14 +324,13 @@ function SupervisorProfile() {
     const result = await updateSupervisorProfile(payload)
 
     if (!result.ok) {
-      setNotice(result.error)
+      toast.error(result.error || 'Failed to save profile.')
       setSaving(false)
       return
     }
 
-    setNotice('Profile updated successfully.')
+    toast.success('Profile updated successfully!')
     setSaving(false)
-    setTimeout(() => setNotice(''), 3000)
   }
 
   return (
@@ -478,19 +461,6 @@ function SupervisorProfile() {
               {saving ? <LoadingSpinner size={16} /> : <Save size={16} />}
               Save Changes
             </button>
-            {notice && (
-              <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-caption"
-                style={{
-                  color: notice.includes('success') ? 'var(--success)' : 'var(--danger)',
-                  fontWeight: 500,
-                }}
-              >
-                {notice}
-              </motion.span>
-            )}
           </div>
         </form>
       </motion.div>

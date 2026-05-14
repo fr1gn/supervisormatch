@@ -1,17 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
-import AppLayout from './layouts/AppLayout'
-import AboutPage from './pages/AboutPage'
-import LoginPage from './pages/LoginPage'
-import ProfilePage from './pages/ProfilePage'
-import RegisterPage from './pages/RegisterPage'
-import RequestsPage from './pages/RequestsPage'
-import SearchPage from './pages/SearchPage'
-import SupervisorDashboardPage from './pages/SupervisorDashboardPage'
 import LoadingSpinner from './components/LoadingSpinner'
 import { getAdminRoutes } from './admin/routes'
 import { AdminThemeProvider } from './admin/hooks/useAdminTheme'
+
+// Lazy-loaded route components for code splitting
+const AppLayout = lazy(() => import('./layouts/AppLayout'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const SearchPage = lazy(() => import('./pages/SearchPage'))
+const RequestsPage = lazy(() => import('./pages/RequestsPage'))
+const SupervisorDashboardPage = lazy(() => import('./pages/SupervisorDashboardPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 
 function RequireAuth({ children }) {
   const { session } = useApp()
@@ -47,40 +50,57 @@ function RequireRole({ role, children }) {
   return children
 }
 
+function SuspenseFallback() {
+  return (
+    <div
+      style={{
+        minHeight: '60vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <LoadingSpinner size={24} style={{ color: 'var(--accent)' }} />
+    </div>
+  )
+}
+
 function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<RootRedirect />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+    <Suspense fallback={<SuspenseFallback />}>
+      <Routes>
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      <Route
-        path="/app"
-        element={
-          <RequireAuth>
-            <AppLayout />
-          </RequireAuth>
-        }
-      >
-        <Route path="search" element={<SearchPage />} />
-        <Route path="requests" element={<RequestsPage />} />
         <Route
-          path="supervisor"
+          path="/app"
           element={
-            <RequireRole role="supervisor">
-              <SupervisorDashboardPage />
-            </RequireRole>
+            <RequireAuth>
+              <AppLayout />
+            </RequireAuth>
           }
-        />
-        <Route path="about" element={<AboutPage />} />
-        <Route path="profile" element={<ProfilePage />} />
-      </Route>
+        >
+          <Route path="search" element={<SearchPage />} />
+          <Route path="requests" element={<RequestsPage />} />
+          <Route
+            path="supervisor"
+            element={
+              <RequireRole role="supervisor">
+                <SupervisorDashboardPage />
+              </RequireRole>
+            }
+          />
+          <Route path="about" element={<AboutPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
 
-      {/* Admin Panel Routes */}
-      {getAdminRoutes()}
+        {/* Admin Panel Routes */}
+        {getAdminRoutes()}
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
