@@ -256,35 +256,37 @@ export function registerRoutes(app: any, store: any): void {
     }
 
     const updates = parsed.data as any;
-    
+
+    // Build user update data — only include defined fields (Prisma rejects undefined)
+    const userData: Record<string, any> = {};
+    for (const key of ['fullName', 'department', 'groupName', 'phone', 'studyLevel', 'interests', 'bio', 'avatar']) {
+      if (updates[key] !== undefined) {
+        userData[key] = updates[key];
+      }
+    }
+
     // update user
     const updatedUser = await prisma.user.update({
       where: { id: userPayload.sub },
-      data: {
-        fullName: updates.fullName,
-        department: updates.department,
-        groupName: updates.groupName,
-        phone: updates.phone,
-        studyLevel: updates.studyLevel,
-        interests: updates.interests,
-        bio: updates.bio,
-        avatar: updates.avatar,
-      }
+      data: userData
     });
 
     if (updatedUser.role === 'supervisor') {
-      await prisma.supervisor.update({
-        where: { userId: updatedUser.id },
-        data: {
-          name: updates.fullName,
-          department: updates.department,
-          phone: updates.phone,
-          bio: updates.bio,
-          title: updates.title,
-          areas: updates.areas && updates.areas.length > 0 ? updates.areas : undefined,
-          avatar: updates.avatar,
-        }
-      }).catch(() => {});
+      const supervisorData: Record<string, any> = {};
+      if (updates.fullName !== undefined) supervisorData.name = updates.fullName;
+      if (updates.department !== undefined) supervisorData.department = updates.department;
+      if (updates.phone !== undefined) supervisorData.phone = updates.phone;
+      if (updates.bio !== undefined) supervisorData.bio = updates.bio;
+      if (updates.title !== undefined) supervisorData.title = updates.title;
+      if (updates.areas && updates.areas.length > 0) supervisorData.areas = updates.areas;
+      if (updates.avatar !== undefined) supervisorData.avatar = updates.avatar;
+
+      if (Object.keys(supervisorData).length > 0) {
+        await prisma.supervisor.update({
+          where: { userId: updatedUser.id },
+          data: supervisorData
+        }).catch(() => {});
+      }
     }
 
     res.json(sanitizeUser(updatedUser));

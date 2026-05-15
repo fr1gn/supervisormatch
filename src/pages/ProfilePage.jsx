@@ -38,7 +38,7 @@ function StudentProfile() {
     if (!file) return;
 
     setUploading(true);
-    setNotice('Uploading photo...');
+    toast.info('Uploading photo...');
     
     const formData = new FormData();
     formData.append('file', file);
@@ -48,9 +48,9 @@ function StudentProfile() {
 
     if (res.ok && res.data?.url) {
       setForm(prev => ({ ...prev, avatar: res.data.url }));
-      setNotice('Photo uploaded! Click Save to apply.');
+      toast.success('Photo uploaded! Click Save to apply.');
     } else {
-      setNotice(res.error || 'Upload failed');
+      toast.error(res.error || 'Upload failed');
     }
     setUploading(false);
   }
