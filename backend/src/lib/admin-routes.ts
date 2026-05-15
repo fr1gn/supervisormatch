@@ -151,7 +151,7 @@ export function registerAdminRoutes(app: any): void {
     const recentRequests = await prisma.request.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
-      include: { supervisor: true },
+      include: { supervisor: true, student: { select: { avatar: true } } },
     });
 
     const activity = recentRequests.map((r) => ({
@@ -165,7 +165,7 @@ export function registerAdminRoutes(app: any): void {
       type: r.status === 'accepted' ? 'approval' :
             r.status === 'rejected' ? 'rejection' :
             r.status === 'pending' ? 'application' : 'update',
-      avatar: null,
+      avatar: r.student?.avatar || null,
     }));
 
     res.json({ data: activity });
@@ -193,6 +193,7 @@ export function registerAdminRoutes(app: any): void {
         studyLevel: true,
         interests: true,
         bio: true,
+        avatar: true,
         createdAt: true,
         studentRequests: {
           select: { status: true, supervisorId: true, supervisor: { select: { name: true } } },
@@ -218,7 +219,7 @@ export function registerAdminRoutes(app: any): void {
         status: hasAccepted ? 'active' : (latestReq ? 'pending' : 'inactive'),
         supervisor: hasAccepted ? latestReq?.supervisor?.name || null : null,
         applicationDate: s.createdAt.toISOString().split('T')[0],
-        avatar: null,
+        avatar: s.avatar || null,
         researchInterests: s.interests ? s.interests.split(',').map((i: string) => i.trim()).filter(Boolean) : [],
       };
     });

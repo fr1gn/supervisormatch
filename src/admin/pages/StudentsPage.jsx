@@ -269,7 +269,7 @@ export default function StudentsPage() {
                 >
                   <td style={{ padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <Avatar name={student.name} size={34} />
+                      <Avatar name={student.name} size={34} src={student.avatar} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 'var(--admin-text-sm)', color: 'var(--admin-text-primary)' }}>
                           {student.name}
@@ -338,7 +338,7 @@ export default function StudentsPage() {
         {selectedStudent && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-              <Avatar name={selectedStudent.name} size={56} />
+              <Avatar name={selectedStudent.name} size={56} src={selectedStudent.avatar} />
               <div>
                 <h3 style={{ fontSize: 'var(--admin-text-xl)', fontWeight: 700, margin: '0 0 4px', color: 'var(--admin-text-primary)' }}>
                   {selectedStudent.name}

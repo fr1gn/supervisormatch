@@ -28,7 +28,7 @@ function SupervisorCard({ supervisor, index }) {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <Avatar name={supervisor.name} size={48} />
+          <Avatar name={supervisor.name} size={48} src={supervisor.avatar} />
           <div>
             <h3 style={{ fontSize: 'var(--admin-text-md)', fontWeight: 700, margin: '0 0 2px', color: 'var(--admin-text-primary)' }}>
               {supervisor.name}

@@ -487,9 +487,18 @@ export function registerRoutes(app: any, store: any): void {
 
     const requests = await prisma.request.findMany({
       where: { supervisorId: supervisor.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: { student: { select: { avatar: true } } },
     });
-    res.json(requests);
+
+    // Flatten student avatar onto each request object
+    const result = requests.map(r => ({
+      ...r,
+      studentAvatar: r.student?.avatar || null,
+      student: undefined, // remove the nested object
+    }));
+
+    res.json(result);
   }));
 
   // requests/:id/status

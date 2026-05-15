@@ -286,9 +286,22 @@ export default function SupervisorDashboardPage() {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div className="avatar avatar-sm">
-                            {getInitials(request.studentName || request.studentEmail)}
-                          </div>
+                          {request.studentAvatar ? (
+                            <img
+                              src={request.studentAvatar}
+                              alt={request.studentName}
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 'var(--radius-full)',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          ) : (
+                            <div className="avatar avatar-sm">
+                              {getInitials(request.studentName || request.studentEmail)}
+                            </div>
+                          )}
                           <div>
                             <h3
                               className="heading-subtitle"
