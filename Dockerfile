@@ -1,5 +1,5 @@
 # Сборка
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 
 # при деплое передаём пустой URL — nginx будет проксировать /api на бэкенд
