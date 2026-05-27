@@ -12,6 +12,7 @@ import {
   Sun,
   Menu,
   X,
+  FolderOpen,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
@@ -115,12 +116,14 @@ export default function AppLayout() {
   const navItems = isSupervisor
     ? [
         { to: '/app/supervisor', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/app/projects', icon: FolderOpen, label: 'Проекты' },
         { to: '/app/about', icon: Info, label: 'About' },
         { to: '/app/profile', icon: UserCircle, label: 'Profile' },
       ]
     : [
         { to: '/app/search', icon: Search, label: 'Find Supervisors' },
         { to: '/app/requests', icon: FileText, label: 'My Requests' },
+        { to: '/app/projects', icon: FolderOpen, label: 'Проекты' },
         { to: '/app/about', icon: Info, label: 'About' },
         { to: '/app/profile', icon: UserCircle, label: 'Profile' },
       ]

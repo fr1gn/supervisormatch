@@ -9,17 +9,23 @@ services:
       - "4000:4000"
     env_file:
       - ./backend/.env
+    volumes:
+      # файлы проектов сохраняются на хосте — не потеряются при перезапуске контейнера
+      - uploads_data:/app/uploads
+    restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        # Указываем реальный IP сервера, если деплоим на удаленный сервер
-        # Для локального запуска оставляем localhost
-        - VITE_API_URL=http://localhost:4000
+        # пустой URL = фронт шлёт запросы на тот же домен, nginx проксирует на бэкенд
+        - VITE_API_URL=
     ports:
-      # Фронтенд будет доступен по адресу http://localhost:80 (просто http://localhost)
       - "80:80"
     depends_on:
       - backend
+    restart: unless-stopped
+
+volumes:
+  uploads_data:

@@ -429,6 +429,20 @@ export function registerAdminRoutes(app: any): void {
       data: { currentStudents: { increment: 1 } },
     }).catch(() => { });
 
+    // создаём проект если его ещё нет для этой заявки
+    const existingProject = await prisma.project.findUnique({ where: { requestId: r.id } });
+    if (!existingProject) {
+      await prisma.project.create({
+        data: {
+          title: `Проект: ${r.studentName}`,
+          description: '',
+          requestId: r.id,
+          studentUserId: r.studentUserId,
+          supervisorId: r.supervisorId,
+        }
+      }).catch(() => { });
+    }
+
     res.json({ success: true, message: 'Application approved successfully' });
   }));
 

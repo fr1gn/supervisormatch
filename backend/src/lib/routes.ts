@@ -535,7 +535,7 @@ export function registerRoutes(app: any): void {
 
     if (request.supervisorId !== supervisor.id) throw createError(403, 'You can only update requests assigned to you.');
 
-    // принимаем студента - увеличиваем счётчик
+    // принимаем студента — увеличиваем счётчик и создаём проект
     if (parsed.data.status === 'accepted' && request.status !== 'accepted') {
       if (supervisor.currentStudents >= supervisor.capacity) {
         throw createError(400, 'Supervisor has no remaining capacity.');
@@ -544,6 +544,20 @@ export function registerRoutes(app: any): void {
         where: { id: supervisor.id },
         data: { currentStudents: { increment: 1 } }
       });
+
+      // создаём проект если его ещё нет для этой заявки
+      const existingProject = await prisma.project.findUnique({ where: { requestId: request.id } });
+      if (!existingProject) {
+        await prisma.project.create({
+          data: {
+            title: `Проект: ${request.studentName}`,
+            description: '',
+            requestId: request.id,
+            studentUserId: request.studentUserId,
+            supervisorId: supervisor.id,
+          }
+        });
+      }
     }
 
     // если передумал после принятия - уменьшаем счётчик обратно
@@ -560,5 +574,172 @@ export function registerRoutes(app: any): void {
     });
 
     res.json(updatedRequest);
+  }));
+
+  // ==================== ПРОЕКТЫ ====================
+
+  // настраиваем multer для сохранения файлов проекта на диск
+  const projectStorage = multer.diskStorage({
+    destination: (req: any, file: any, cb: any) => {
+      const dir = path.join(process.cwd(), 'uploads', 'projects', req.params.id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req: any, file: any, cb: any) => {
+      // добавляем timestamp чтобы не было конфликтов имён
+      const uniqueName = `${Date.now()}-${file.originalname}`;
+      cb(null, uniqueName);
+    }
+  });
+  const projectUpload = multer({ storage: projectStorage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+  // список проектов текущего юзера
+  app.get('/projects', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+
+    let projects;
+    if (userPayload.role === 'student') {
+      projects = await prisma.project.findMany({
+        where: { studentUserId: userPayload.sub },
+        include: { files: true, supervisor: { select: { name: true, avatar: true } } },
+        orderBy: { updatedAt: 'desc' },
+      });
+    } else {
+      const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+      if (!supervisor) { res.json([]); return; }
+      projects = await prisma.project.findMany({
+        where: { supervisorId: supervisor.id },
+        include: { files: true, student: { select: { fullName: true, avatar: true } } },
+        orderBy: { updatedAt: 'desc' },
+      });
+    }
+
+    res.json(projects);
+  }));
+
+  // детали проекта — только для участников
+  app.get('/projects/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: {
+        files: { orderBy: { createdAt: 'desc' } },
+        student: { select: { id: true, fullName: true, avatar: true, email: true } },
+        supervisor: { select: { id: true, name: true, avatar: true, userId: true } },
+      },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    // проверяем что юзер — участник проекта
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    res.json(project);
+  }));
+
+  // обновить название/описание проекта
+  app.patch('/projects/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: { supervisor: { select: { userId: true } } },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    const { title, description } = req.body as any;
+    const updated = await prisma.project.update({
+      where: { id: project.id },
+      data: {
+        ...(title !== undefined && { title: String(title).trim() }),
+        ...(description !== undefined && { description: String(description).trim() }),
+      },
+    });
+
+    res.json(updated);
+  }));
+
+  // загрузить файл в проект
+  app.post('/projects/:id/files', requireAuth, projectUpload.single('file'), asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: { supervisor: { select: { userId: true } } },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    if (!(req as any).file) throw createError(400, 'No file uploaded.');
+    const file = (req as any).file;
+
+    const name = String((req.body as any).name || file.originalname).trim();
+
+    const projectFile = await prisma.projectFile.create({
+      data: {
+        projectId: project.id,
+        name,
+        fileName: file.originalname,
+        filePath: file.path,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        uploadedBy: userPayload.sub,
+      },
+    });
+
+    // обновляем updatedAt у проекта
+    await prisma.project.update({ where: { id: project.id }, data: {} });
+
+    res.json(projectFile);
+  }));
+
+  // скачать файл из проекта
+  app.get('/projects/:id/files/:fileId/download', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: { supervisor: { select: { userId: true } } },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    const file = await prisma.projectFile.findUnique({ where: { id: (req as any).params.fileId } });
+    if (!file || file.projectId !== project.id) throw createError(404, 'File not found.');
+
+    if (!fs.existsSync(file.filePath)) throw createError(404, 'File not found on disk.');
+
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.fileName)}"`);
+    res.setHeader('Content-Type', file.mimeType);
+    const stream = fs.createReadStream(file.filePath);
+    stream.pipe(res as any);
+  }));
+
+  // удалить файл из проекта
+  app.delete('/projects/:id/files/:fileId', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: { supervisor: { select: { userId: true } } },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    const file = await prisma.projectFile.findUnique({ where: { id: (req as any).params.fileId } });
+    if (!file || file.projectId !== project.id) throw createError(404, 'File not found.');
+
+    // удаляем файл с диска
+    if (fs.existsSync(file.filePath)) {
+      fs.unlinkSync(file.filePath);
+    }
+
+    await prisma.projectFile.delete({ where: { id: file.id } });
+    res.json({ ok: true });
   }));
 }

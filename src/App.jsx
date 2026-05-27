@@ -15,6 +15,8 @@ const RequestsPage = lazy(() => import('./pages/RequestsPage'))
 const SupervisorDashboardPage = lazy(() => import('./pages/SupervisorDashboardPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const ProjectsListPage = lazy(() => import('./pages/ProjectsListPage'))
+const ProjectPage = lazy(() => import('./pages/ProjectPage'))
 
 function RequireAuth({ children }) {
   const { session } = useApp()
@@ -93,6 +95,8 @@ function AppRoutes() {
           />
           <Route path="about" element={<AboutPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="projects" element={<ProjectsListPage />} />
+          <Route path="projects/:id" element={<ProjectPage />} />
         </Route>
 
         {getAdminRoutes()}

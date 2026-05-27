@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+// в проде VITE_API_URL пустой — запросы идут на тот же домен через nginx proxy
+// в деве — на localhost:4000
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : '');
 
 // флаги чтобы не спамить рефрешами при нескольких параллельных 401
 let isRefreshing = false;
