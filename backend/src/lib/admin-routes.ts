@@ -434,7 +434,7 @@ export function registerAdminRoutes(app: any): void {
     if (!existingProject) {
       await prisma.project.create({
         data: {
-          title: `Проект: ${r.studentName}`,
+          title: `Project: ${r.studentName}`,
           description: '',
           requestId: r.id,
           studentUserId: r.studentUserId,

@@ -550,7 +550,7 @@ export function registerRoutes(app: any): void {
       if (!existingProject) {
         await prisma.project.create({
           data: {
-            title: `Проект: ${request.studentName}`,
+            title: `Project: ${request.studentName}`,
             description: '',
             requestId: request.id,
             studentUserId: request.studentUserId,

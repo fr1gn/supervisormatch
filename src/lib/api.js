@@ -74,18 +74,18 @@ export async function apiRequest(endpoint, options = {}) {
   try {
     let response = await fetch(url, fetchOptions);
 
-    // словили 401 пробуем обновить токен и повторить запрос
-    if (response.status === 401 && !endpoint.includes('/auth/refresh')) {
+    // got 401 — try to refresh the token and retry (skip auth endpoints — they return their own errors)
+    if (response.status === 401 && !endpoint.startsWith('/auth/')) {
       const newToken = await refreshAccessToken();
 
       if (newToken) {
         fetchOptions.headers['Authorization'] = `Bearer ${newToken}`;
         response = await fetch(url, fetchOptions);
       } else {
-        // рефреш тоже сдох разлогиниваем юзера
+        // refresh also failed — log the user out
         localStorage.removeItem('access_token');
         window.dispatchEvent(new CustomEvent('auth:session-expired'));
-        return { ok: false, error: 'Сессия истекла, залогинься заново.' };
+        return { ok: false, error: 'Session expired. Please log in again.' };
       }
     }
 
@@ -107,8 +107,8 @@ export async function apiRequest(endpoint, options = {}) {
     return { ok: true, data };
   } catch (err) {
     const message = err.message?.includes('fetch')
-      ? 'Не удалось подключиться к серверу. Проверь соединение.'
-      : err.message || 'Что-то пошло не так.';
+      ? 'Could not connect to server. Check your connection.'
+      : err.message || 'Something went wrong.';
     return { ok: false, error: message };
   }
 }

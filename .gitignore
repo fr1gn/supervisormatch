@@ -10,8 +10,10 @@ node_modules
 dist
 backend/data/db.json
 .env
+.env.*
 dist-ssr
 *.local
+uploads/
 
 .vscode/*
 !.vscode/extensions.json

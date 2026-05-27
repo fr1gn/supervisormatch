@@ -20,9 +20,8 @@ export default function ProjectsListPage() {
     })
   }, [])
 
-  // человекочитаемая дата
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('ru-RU', {
+    return new Date(dateStr).toLocaleDateString('en-US', {
       day: 'numeric', month: 'short', year: 'numeric'
     })
   }
@@ -37,7 +36,7 @@ export default function ProjectsListPage() {
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
-      {/* заголовок */}
+      {/* header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -47,20 +46,20 @@ export default function ProjectsListPage() {
           fontSize: '1.75rem', fontWeight: 700,
           color: 'var(--text-primary)', marginBottom: '0.5rem',
         }}>
-          Проекты
+          Projects
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
           {session?.role === 'student'
-            ? 'Ваши научные проекты с супервайзерами'
-            : 'Проекты с вашими студентами'}
+            ? 'Your research projects with supervisors'
+            : 'Projects with your students'}
         </p>
       </motion.div>
 
       {projects.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title="Пока нет проектов"
-          description="Проект создаётся автоматически, когда супервайзер принимает заявку"
+          title="No projects yet"
+          description="A project is created automatically when a supervisor accepts your request"
         />
       ) : (
         <div style={{
@@ -92,7 +91,7 @@ export default function ProjectsListPage() {
                 e.currentTarget.style.transform = 'translateY(0)'
               }}
             >
-              {/* иконка + название */}
+              {/* icon + title */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1rem' }}>
                 <div style={{
                   width: '40px', height: '40px', borderRadius: '10px',
@@ -122,9 +121,9 @@ export default function ProjectsListPage() {
                 </div>
               </div>
 
-              {/* инфо */}
+              {/* info */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                {/* участник */}
+                {/* participant */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <User size={14} />
                   <span>
@@ -134,13 +133,13 @@ export default function ProjectsListPage() {
                   </span>
                 </div>
 
-                {/* файлы */}
+                {/* files */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <FileText size={14} />
-                  <span>{project.files?.length || 0} файл(ов)</span>
+                  <span>{project.files?.length || 0} file(s)</span>
                 </div>
 
-                {/* дата */}
+                {/* date */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Calendar size={14} />
                   <span>{formatDate(project.createdAt)}</span>

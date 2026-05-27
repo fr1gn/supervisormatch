@@ -11,14 +11,14 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { api } from '../lib/api'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-// человекочитаемый размер файла
+// human-readable file size
 function formatFileSize(bytes) {
-  if (bytes < 1024) return bytes + ' Б'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' МБ'
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
-// иконка по типу файла
+// icon by file type
 function getFileIcon(mimeType) {
   if (mimeType?.startsWith('image/')) return Image
   if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) return FileSpreadsheet
@@ -26,7 +26,7 @@ function getFileIcon(mimeType) {
   return FileText
 }
 
-// цвет иконки по типу
+// icon color by type
 function getFileColor(mimeType) {
   if (mimeType?.startsWith('image/')) return '#10b981'
   if (mimeType?.includes('pdf')) return '#ef4444'
@@ -48,7 +48,7 @@ export default function ProjectPage() {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
 
-  // состояние редактирования
+  // editing state
   const [editingTitle, setEditingTitle] = useState(false)
   const [editingDesc, setEditingDesc] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
@@ -56,41 +56,41 @@ export default function ProjectPage() {
 
   const fileInputRef = useRef(null)
 
-  // загружаем проект
+  // fetch project
   const fetchProject = useCallback(async () => {
     const res = await api.get(`/projects/${id}`)
     if (res.ok) {
       setProject(res.data)
     } else {
-      toast.error('Не удалось загрузить проект')
+      toast.error('Failed to load project')
     }
     setLoading(false)
   }, [id])
 
   useEffect(() => { fetchProject() }, [fetchProject])
 
-  // сохраняем название
+  // save title
   const saveTitle = async () => {
     if (!titleDraft.trim()) { setEditingTitle(false); return }
     const res = await api.patch(`/projects/${id}`, { title: titleDraft.trim() })
     if (res.ok) {
       setProject(p => ({ ...p, title: titleDraft.trim() }))
-      toast.success('Название обновлено')
+      toast.success('Title updated')
     }
     setEditingTitle(false)
   }
 
-  // сохраняем описание
+  // save description
   const saveDesc = async () => {
     const res = await api.patch(`/projects/${id}`, { description: descDraft.trim() })
     if (res.ok) {
       setProject(p => ({ ...p, description: descDraft.trim() }))
-      toast.success('Описание обновлено')
+      toast.success('Description updated')
     }
     setEditingDesc(false)
   }
 
-  // загрузка файла
+  // upload file
   const uploadFile = async (file) => {
     if (!file) return
     setUploading(true)
@@ -100,15 +100,15 @@ export default function ProjectPage() {
 
     const res = await api.postFormData(`/projects/${id}/files`, formData)
     if (res.ok) {
-      toast.success(`Файл "${file.name}" загружен`)
+      toast.success(`File "${file.name}" uploaded`)
       await fetchProject()
     } else {
-      toast.error(res.error || 'Ошибка загрузки файла')
+      toast.error(res.error || 'Failed to upload file')
     }
     setUploading(false)
   }
 
-  // скачивание файла
+  // download file
   const downloadFile = async (fileId, fileName) => {
     try {
       const token = localStorage.getItem('access_token')
@@ -126,25 +126,25 @@ export default function ProjectPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      toast.error('Не удалось скачать файл')
+      toast.error('Failed to download file')
     }
   }
 
-  // удаление файла
+  // delete file
   const deleteFile = async (fileId, fileName) => {
     const ok = await confirm({
-      title: 'Удалить файл?',
-      message: `"${fileName}" будет удалён без возможности восстановления`,
+      title: 'Delete file?',
+      message: `"${fileName}" will be permanently deleted`,
       variant: 'danger',
     })
     if (!ok) return
 
     const res = await api.delete(`/projects/${id}/files/${fileId}`)
     if (res.ok) {
-      toast.success('Файл удалён')
+      toast.success('File deleted')
       await fetchProject()
     } else {
-      toast.error('Не удалось удалить файл')
+      toast.error('Failed to delete file')
     }
   }
 
@@ -170,18 +170,18 @@ export default function ProjectPage() {
   if (!project) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        Проект не найден
+        Project not found
       </div>
     )
   }
 
-  const formatDate = (d) => new Date(d).toLocaleDateString('ru-RU', {
+  const formatDate = (d) => new Date(d).toLocaleDateString('en-US', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
-      {/* кнопка назад */}
+      {/* back button */}
       <motion.button
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
@@ -192,10 +192,10 @@ export default function ProjectPage() {
           cursor: 'pointer', fontSize: '0.9rem', padding: '0.5rem 0', marginBottom: '1rem',
         }}
       >
-        <ArrowLeft size={18} /> Назад к проектам
+        <ArrowLeft size={18} /> Back to Projects
       </motion.button>
 
-      {/* шапка проекта */}
+      {/* project header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -204,7 +204,7 @@ export default function ProjectPage() {
           borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem',
         }}
       >
-        {/* название */}
+        {/* title */}
         <div style={{ marginBottom: '0.75rem' }}>
           {editingTitle ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -235,7 +235,7 @@ export default function ProjectPage() {
           )}
         </div>
 
-        {/* описание */}
+        {/* description */}
         <div style={{ marginBottom: '1rem' }}>
           {editingDesc ? (
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
@@ -265,23 +265,23 @@ export default function ProjectPage() {
                 fontSize: '0.9rem', color: project.description ? 'var(--text-secondary)' : 'var(--text-tertiary)',
                 lineHeight: 1.6, fontStyle: project.description ? 'normal' : 'italic',
               }}>
-                {project.description || 'Нажмите, чтобы добавить описание...'}
+                {project.description || 'Click to add a description...'}
               </p>
               <Pencil size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0, marginTop: '0.15rem' }} />
             </div>
           )}
         </div>
 
-        {/* участники */}
+        {/* participants */}
         <div style={{
           display: 'flex', gap: '1rem', flexWrap: 'wrap',
           padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '10px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={16} style={{ color: 'var(--text-tertiary)' }} />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>Участники:</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>Participants:</span>
           </div>
-          {/* студент */}
+          {/* student */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <div style={{
               width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden',
@@ -299,9 +299,9 @@ export default function ProjectPage() {
             <span style={{
               fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
               background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent)',
-            }}>студент</span>
+            }}>student</span>
           </div>
-          {/* супервайзер */}
+          {/* supervisor */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <div style={{
               width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden',
@@ -319,12 +319,12 @@ export default function ProjectPage() {
             <span style={{
               fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
               background: 'rgba(16, 185, 129, 0.15)', color: '#10b981',
-            }}>супервайзер</span>
+            }}>supervisor</span>
           </div>
         </div>
       </motion.div>
 
-      {/* зона загрузки файлов */}
+      {/* file upload zone */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -334,10 +334,10 @@ export default function ProjectPage() {
           fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)',
           marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
         }}>
-          <FolderOpen size={20} /> Файлы проекта
+          <FolderOpen size={20} /> Project Files
         </h2>
 
-        {/* drag & drop зона */}
+        {/* drag & drop zone */}
         <div
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -366,19 +366,19 @@ export default function ProjectPage() {
             <>
               <Upload size={28} style={{ color: 'var(--text-tertiary)', marginBottom: '0.5rem' }} />
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Перетащите файл сюда или нажмите для выбора
+                Drag & drop a file here or click to browse
               </p>
               <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                Максимум 20 МБ
+                Max 20 MB
               </p>
             </>
           )}
         </div>
 
-        {/* список файлов */}
+        {/* file list */}
         {project.files?.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.9rem', padding: '2rem 0' }}>
-            Пока файлов нет — загрузите первый!
+            No files yet — upload your first one!
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -400,7 +400,7 @@ export default function ProjectPage() {
                       borderRadius: '12px',
                     }}
                   >
-                    {/* иконка типа файла */}
+                    {/* file type icon */}
                     <div style={{
                       width: '36px', height: '36px', borderRadius: '8px',
                       background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -409,7 +409,7 @@ export default function ProjectPage() {
                       <Icon size={18} style={{ color }} />
                     </div>
 
-                    {/* инфо о файле */}
+                    {/* file info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
                         fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)',
@@ -422,11 +422,11 @@ export default function ProjectPage() {
                       </div>
                     </div>
 
-                    {/* кнопки */}
+                    {/* actions */}
                     <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
                       <button
                         onClick={() => downloadFile(file.id, file.fileName)}
-                        title="Скачать"
+                        title="Download"
                         style={{
                           ...iconBtnStyle,
                           color: 'var(--accent)',
@@ -436,7 +436,7 @@ export default function ProjectPage() {
                       </button>
                       <button
                         onClick={() => deleteFile(file.id, file.name)}
-                        title="Удалить"
+                        title="Delete"
                         style={{
                           ...iconBtnStyle,
                           color: 'var(--error, #ef4444)',
@@ -456,7 +456,7 @@ export default function ProjectPage() {
   )
 }
 
-// стиль для маленьких иконочных кнопок
+// small icon button style
 const iconBtnStyle = {
   background: 'none',
   border: '1px solid var(--border-color)',

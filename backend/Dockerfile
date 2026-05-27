@@ -10,4 +10,6 @@ RUN npm run build
 RUN mkdir -p uploads/projects
 
 EXPOSE 4000
-CMD ["npm", "start"]
+
+# при старте сначала накатываем миграции (создаём таблицы), потом запускаем сервер
+CMD npx prisma migrate deploy && npm start
