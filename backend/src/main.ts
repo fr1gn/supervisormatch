@@ -21,7 +21,7 @@ async function bootstrap() {
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.use(express.json({ limit: '10mb' }));
   expressApp.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-  registerRoutes(expressApp, null);
+  registerRoutes(expressApp);
   registerAdminRoutes(expressApp);
 
   const port = Number(process.env.PORT || 4000);

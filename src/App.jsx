@@ -3,10 +3,10 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AppProvider, useApp } from './context/AppContext'
 import LoadingSpinner from './components/LoadingSpinner'
+import ErrorBoundary from './components/ErrorBoundary'
 import { getAdminRoutes } from './admin/routes'
 import { AdminThemeProvider } from './admin/hooks/useAdminTheme'
 
-// Lazy-loaded route components for code splitting
 const AppLayout = lazy(() => import('./layouts/AppLayout'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
@@ -95,7 +95,6 @@ function AppRoutes() {
           <Route path="profile" element={<ProfilePage />} />
         </Route>
 
-        {/* Admin Panel Routes */}
         {getAdminRoutes()}
 
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -143,10 +142,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AdminThemeProvider>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
-    </AdminThemeProvider>
+    <ErrorBoundary>
+      <AdminThemeProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </AdminThemeProvider>
+    </ErrorBoundary>
   )
 }

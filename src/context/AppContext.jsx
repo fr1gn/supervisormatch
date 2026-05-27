@@ -9,6 +9,7 @@ export function AppProvider({ children }) {
   const [supervisors, setSupervisors] = useState([])
   const [requests, setRequests] = useState([])
 
+  // при загрузке проверяем, есть ли сохранённый токен — если да, восстанавливаем сессию
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (token) {
@@ -23,6 +24,18 @@ export function AppProvider({ children }) {
     } else {
       setIsInitializing(false)
     }
+  }, [])
+
+  // если токен протух и рефреш не помог — чистим всё и кидаем на логин
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      localStorage.removeItem('access_token')
+      setSession(null)
+      setSupervisors([])
+      setRequests([])
+    }
+    window.addEventListener('auth:session-expired', handleSessionExpired)
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired)
   }, [])
 
   const registerUser = async (payload) => {
@@ -75,6 +88,7 @@ export function AppProvider({ children }) {
     }
   }, [session]);
 
+  // подгружаем данные сразу после логина
   useEffect(() => {
     if (session) {
       fetchSupervisors()
@@ -101,11 +115,6 @@ export function AppProvider({ children }) {
       await fetchSupervisors(); 
     }
     return res;
-  }
-
-  // Not supported by backend
-  const cancelRequest = async (requestId) => {
-    return { ok: false, error: 'Cannot delete request in this version.' }
   }
 
   const updateSupervisorProfile = async (payload) => {
@@ -164,7 +173,6 @@ export function AppProvider({ children }) {
     getCurrentSupervisor,
     getSupervisorRequests,
     updateRequestStatus,
-    cancelRequest,
     updateStudentProfile,
     updateSupervisorProfile,
     addSupervisorTopic,

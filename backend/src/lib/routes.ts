@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { z } from 'zod';
 import {
   hashValue,
+  hashPassword,
+  comparePassword,
   normalizeEmail,
   requireAuth,
   signAccessToken,
@@ -15,7 +17,7 @@ import path from 'path';
 import fs from 'fs';
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage, limits: { fileSize: 20 * 1024 * 1024 } }); // 20 MB limit
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2),
@@ -73,11 +75,13 @@ const updateStatusSchema = z.object({
   status: z.enum(['pending', 'under review', 'accepted', 'rejected']),
 });
 
+// убираем пароль и хеш токена из ответа, чтобы не палить лишнее
 function sanitizeUser(user: any) {
   const { password, refreshTokenHash, ...safeUser } = user;
   return safeUser;
 }
 
+// обёртка для async обработчиков, чтобы ошибки не улетали в никуда
 function asyncRoute(handler: (req: AuthedRequest, res: Response) => Promise<void>) {
   return async (req: AuthedRequest, res: Response) => {
     try {
@@ -91,12 +95,14 @@ function asyncRoute(handler: (req: AuthedRequest, res: Response) => Promise<void
   };
 }
 
+// кидаем ошибку с нужным статус-кодом
 function createError(statusCode: number, message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number };
   error.statusCode = statusCode;
   return error;
 }
 
+// достаём юзера из реквеста или шлём нахер с 401
 function mustUser(req: AuthedRequest): JwtPayload {
   if (!req.user) {
     throw createError(401, 'Unauthorized');
@@ -104,8 +110,8 @@ function mustUser(req: AuthedRequest): JwtPayload {
   return req.user;
 }
 
-export function registerRoutes(app: any, store: any): void {
-  // upload
+export function registerRoutes(app: any): void {
+  // загрузка файлов (аватарки и прочее), возвращаем base64
   app.post('/upload', requireAuth, upload.single('file'), (req: any, res: any) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -115,7 +121,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json({ url });
   });
 
-  // auth/register
+  // регистрация нового юзера
   app.post('/auth/register', asyncRoute(async (req, res) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -130,12 +136,14 @@ export function registerRoutes(app: any, store: any): void {
       throw createError(409, 'An account with this email already exists.');
     }
 
+    const hashedPassword = await hashPassword(input.password);
+
     const newUser = await prisma.user.create({
       data: {
         fullName: input.fullName,
         email,
         role: input.role,
-        password: hashValue(input.password),
+        password: hashedPassword,
         department: input.department,
         groupName: input.groupName || '',
         phone: '',
@@ -162,7 +170,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json({ ok: true, user: sanitizeUser(newUser) });
   }));
 
-  // auth/login
+  // логин - проверяем пароль, выдаём токены
   app.post('/auth/login', asyncRoute(async (req, res) => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -170,11 +178,21 @@ export function registerRoutes(app: any, store: any): void {
     }
 
     const email = normalizeEmail(parsed.data.email);
-    const incomingHash = hashValue(parsed.data.password);
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || user.password !== incomingHash) {
+    if (!user) {
       throw createError(401, 'Invalid email or password.');
+    }
+
+    const passwordValid = await comparePassword(parsed.data.password, user.password);
+    if (!passwordValid) {
+      throw createError(401, 'Invalid email or password.');
+    }
+
+    // если пароль ещё на старом sha256 — тихо обновляем на bcrypt при логине
+    if (!user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
+      const upgraded = await hashPassword(parsed.data.password);
+      await prisma.user.update({ where: { id: user.id }, data: { password: upgraded } });
     }
 
     const payload: JwtPayload = {
@@ -183,7 +201,7 @@ export function registerRoutes(app: any, store: any): void {
       email: user.email,
     };
     const refreshToken = signRefreshToken(payload);
-    
+
     await prisma.user.update({
       where: { id: user.id },
       data: { refreshTokenHash: hashValue(refreshToken) }
@@ -201,7 +219,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json({ ok: true, accessToken, user: sanitizeUser(user) });
   }));
 
-  // auth/refresh
+  // обновление access токена через refresh cookie
   app.post('/auth/refresh', asyncRoute(async (req, res) => {
     const token = (req as any).cookies?.refreshToken as string | undefined;
     if (!token) {
@@ -224,20 +242,20 @@ export function registerRoutes(app: any, store: any): void {
     res.json({ ok: true, accessToken });
   }));
 
-  // auth/logout
+  // логаут — чистим refresh токен
   app.post('/auth/logout', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
-    
+
     await prisma.user.update({
       where: { id: userPayload.sub },
       data: { refreshTokenHash: null }
-    }).catch(() => {}); // ignore if user not found
+    }).catch(() => { }); // если юзер уже удалён — ну и ладно
 
     res.clearCookie('refreshToken');
     res.json({ ok: true });
   }));
 
-  // users/me
+  // получаем данные текущего юзера
   app.get('/users/me', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     const user = await prisma.user.findUnique({ where: { id: userPayload.sub } });
@@ -247,7 +265,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(sanitizeUser(user));
   }));
 
-  // users/me (PATCH)
+  // обновление профиля юзера
   app.patch('/users/me', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     const parsed = updateUserSchema.safeParse(req.body);
@@ -257,7 +275,7 @@ export function registerRoutes(app: any, store: any): void {
 
     const updates = parsed.data as any;
 
-    // Build user update data — only include defined fields (Prisma rejects undefined)
+    // собираем только заполненные поля (prisma не любит undefined)
     const userData: Record<string, any> = {};
     for (const key of ['fullName', 'department', 'groupName', 'phone', 'studyLevel', 'interests', 'bio', 'avatar']) {
       if (updates[key] !== undefined) {
@@ -265,7 +283,7 @@ export function registerRoutes(app: any, store: any): void {
       }
     }
 
-    // update user
+    // обновляем юзера в базе
     const updatedUser = await prisma.user.update({
       where: { id: userPayload.sub },
       data: userData
@@ -285,14 +303,14 @@ export function registerRoutes(app: any, store: any): void {
         await prisma.supervisor.update({
           where: { userId: updatedUser.id },
           data: supervisorData
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
 
     res.json(sanitizeUser(updatedUser));
   }));
 
-  // supervisors
+  // получаем список супервайзеров с фильтрацией
   app.get('/supervisors', asyncRoute(async (req, res) => {
     const keyword = String((req as any).query.keyword || '').trim().toLowerCase();
     const department = String((req as any).query.department || '').trim();
@@ -317,7 +335,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(result);
   }));
 
-  // supervisors/:id
+  // получаем конкретного супервайзера по id
   app.get('/supervisors/:id', asyncRoute(async (req, res) => {
     const supervisor = await prisma.supervisor.findUnique({
       where: { id: (req as any).params.id },
@@ -329,7 +347,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(supervisor);
   }));
 
-  // supervisors/:id/profile (PATCH)
+  // обновление профиля супервайзера
   app.patch('/supervisors/:id/profile', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'supervisor') {
@@ -373,7 +391,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(updatedSupervisor);
   }));
 
-  // supervisors/:id/topics
+  // добавляем новую тему супервайзеру
   app.post('/supervisors/:id/topics', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'supervisor') {
@@ -406,7 +424,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(nextTopic);
   }));
 
-  // supervisors/:id/topics/:topicId
+  // удаляем тему у супервайзера
   app.delete('/supervisors/:id/topics/:topicId', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisors can remove topics.');
@@ -424,7 +442,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json({ ok: true });
   }));
 
-  // requests
+  // студент отправляет заявку супервайзеру
   app.post('/requests', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'student') throw createError(403, 'Only student accounts can send requests.');
@@ -462,7 +480,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(request);
   }));
 
-  // requests/student
+  // заявки студента (для страницы 'Мои заявки')
   app.get('/requests/student', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'student') throw createError(403, 'Only student accounts can view this list.');
@@ -474,7 +492,7 @@ export function registerRoutes(app: any, store: any): void {
     res.json(requests);
   }));
 
-  // requests/supervisor
+  // заявки для супервайзера (дашборд)
   app.get('/requests/supervisor', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisor accounts can view this list.');
@@ -491,17 +509,17 @@ export function registerRoutes(app: any, store: any): void {
       include: { student: { select: { avatar: true } } },
     });
 
-    // Flatten student avatar onto each request object
+    // вытаскиваем аватарку студента в корень объекта
     const result = requests.map(r => ({
       ...r,
       studentAvatar: r.student?.avatar || null,
-      student: undefined, // remove the nested object
+      student: undefined, // вложенный объект нам не нужен
     }));
 
     res.json(result);
   }));
 
-  // requests/:id/status
+  // супервайзер меняет статус заявки (принять/отклонить/на рассмотрении)
   app.patch('/requests/:id/status', requireAuth, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisor accounts can update request status.');
@@ -517,6 +535,7 @@ export function registerRoutes(app: any, store: any): void {
 
     if (request.supervisorId !== supervisor.id) throw createError(403, 'You can only update requests assigned to you.');
 
+    // принимаем студента - увеличиваем счётчик
     if (parsed.data.status === 'accepted' && request.status !== 'accepted') {
       if (supervisor.currentStudents >= supervisor.capacity) {
         throw createError(400, 'Supervisor has no remaining capacity.');
@@ -524,6 +543,14 @@ export function registerRoutes(app: any, store: any): void {
       await prisma.supervisor.update({
         where: { id: supervisor.id },
         data: { currentStudents: { increment: 1 } }
+      });
+    }
+
+    // если передумал после принятия - уменьшаем счётчик обратно
+    if (parsed.data.status !== 'accepted' && request.status === 'accepted') {
+      await prisma.supervisor.update({
+        where: { id: supervisor.id },
+        data: { currentStudents: { decrement: 1 } }
       });
     }
 

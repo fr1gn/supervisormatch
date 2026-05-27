@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { AuthedRequest } from './types';
 import { prisma } from './prisma';
 
-// ── Admin Auth helpers ───────────────────────────────────────────────
 
 interface AdminJwtPayload {
   sub: string;
@@ -54,7 +53,6 @@ function asyncRoute(handler: (req: AuthedRequest, res: Response) => Promise<any>
   };
 }
 
-// ── Pagination helper ────────────────────────────────────────────────
 
 function paginate<T>(items: T[], page: number, pageSize: number) {
   const total = items.length;
@@ -69,16 +67,13 @@ function paginate<T>(items: T[], page: number, pageSize: number) {
   };
 }
 
-// ── Register all admin routes ────────────────────────────────────────
 
 export function registerAdminRoutes(app: any): void {
 
-  // ── AUTH ────────────────────────────────────────────────────────────
-
+  // вход в админ панель
   app.post('/admin/auth/login', asyncRoute(async (req, res) => {
     const { email, password, login } = req.body || {};
 
-    // Support both "login" and "email" field names from the frontend
     const inputLogin = (login || email || '').trim();
     const inputPassword = (password || '').trim();
 
@@ -127,8 +122,7 @@ export function registerAdminRoutes(app: any): void {
     });
   }));
 
-  // ── DASHBOARD ──────────────────────────────────────────────────────
-
+  // наши дашборды
   app.get('/admin/dashboard/stats', requireAdmin, asyncRoute(async (_req, res) => {
     const totalStudents = await prisma.user.count({ where: { role: 'student' } });
     const totalSupervisors = await prisma.supervisor.count();
@@ -158,21 +152,20 @@ export function registerAdminRoutes(app: any): void {
       id: r.id,
       user: r.studentName,
       action: r.status === 'accepted' ? 'was accepted by' :
-              r.status === 'rejected' ? 'was rejected by' :
-              r.status === 'pending' ? 'submitted an application to' : 'has update with',
+        r.status === 'rejected' ? 'was rejected by' :
+          r.status === 'pending' ? 'submitted an application to' : 'has update with',
       target: r.supervisor?.name || 'Unknown Supervisor',
       timestamp: r.updatedAt.toISOString(),
       type: r.status === 'accepted' ? 'approval' :
-            r.status === 'rejected' ? 'rejection' :
-            r.status === 'pending' ? 'application' : 'update',
+        r.status === 'rejected' ? 'rejection' :
+          r.status === 'pending' ? 'application' : 'update',
       avatar: r.student?.avatar || null,
     }));
 
     res.json({ data: activity });
   }));
 
-  // ── STUDENTS ───────────────────────────────────────────────────────
-
+  // студенты 
   app.get('/admin/students', requireAdmin, asyncRoute(async (req, res) => {
     const page = Math.max(1, parseInt(String(req.query.page) || '1'));
     const pageSize = Math.max(1, parseInt(String(req.query.pageSize) || '10'));
@@ -203,7 +196,6 @@ export function registerAdminRoutes(app: any): void {
       },
     });
 
-    // Map to admin-expected format
     let mapped = students.map((s, idx) => {
       const latestReq = s.studentRequests[0];
       const hasAccepted = s.studentRequests.some(r => r.status === 'accepted');
@@ -224,7 +216,7 @@ export function registerAdminRoutes(app: any): void {
       };
     });
 
-    // Filter
+    // фильтры
     if (search) {
       mapped = mapped.filter(s =>
         s.name.toLowerCase().includes(search) ||
@@ -236,7 +228,7 @@ export function registerAdminRoutes(app: any): void {
       mapped = mapped.filter(s => s.status === status);
     }
 
-    // Sort
+    // сортировка
     mapped.sort((a: any, b: any) => {
       const aVal = a[sortBy] ?? '';
       const bVal = b[sortBy] ?? '';
@@ -260,7 +252,6 @@ export function registerAdminRoutes(app: any): void {
 
   app.patch('/admin/students/:id', requireAdmin, asyncRoute(async (req, res) => {
     const { status } = req.body;
-    // Admin can update certain fields
     const user = await prisma.user.findUnique({ where: { id: req.params.id as string } });
     if (!user || user.role !== 'student') {
       return res.status(404).json({ message: 'Student not found' });
@@ -284,8 +275,7 @@ export function registerAdminRoutes(app: any): void {
     res.json({ success: true, message: 'Student deleted' });
   }));
 
-  // ── SUPERVISORS ────────────────────────────────────────────────────
-
+  // преподы
   app.get('/admin/supervisors', requireAdmin, asyncRoute(async (req, res) => {
     const page = Math.max(1, parseInt(String(req.query.page) || '1'));
     const pageSize = Math.max(1, parseInt(String(req.query.pageSize) || '10'));
@@ -354,8 +344,7 @@ export function registerAdminRoutes(app: any): void {
     res.json({ data: updated });
   }));
 
-  // ── APPLICATIONS (requests in our DB) ──────────────────────────────
-
+  // заявки
   app.get('/admin/applications', requireAdmin, asyncRoute(async (req, res) => {
     const page = Math.max(1, parseInt(String(req.query.page) || '1'));
     const pageSize = Math.max(1, parseInt(String(req.query.pageSize) || '10'));
@@ -374,8 +363,8 @@ export function registerAdminRoutes(app: any): void {
       department: r.supervisor?.department || '',
       researchTopic: r.message,
       status: r.status === 'accepted' ? 'approved' :
-              r.status === 'under review' ? 'under-review' :
-              r.status as string,
+        r.status === 'under review' ? 'under-review' :
+          r.status as string,
       priority: 'medium' as string,
       submittedAt: r.createdAt.toISOString(),
       updatedAt: r.updatedAt.toISOString(),
@@ -434,11 +423,11 @@ export function registerAdminRoutes(app: any): void {
 
     await prisma.request.update({ where: { id: r.id }, data: { status: 'accepted' } });
 
-    // Increment supervisor student count
+    // увеличиваем счетчик студентов у препода
     await prisma.supervisor.update({
       where: { id: r.supervisorId },
       data: { currentStudents: { increment: 1 } },
-    }).catch(() => {});
+    }).catch(() => { });
 
     res.json({ success: true, message: 'Application approved successfully' });
   }));
@@ -452,8 +441,7 @@ export function registerAdminRoutes(app: any): void {
     res.json({ success: true, message: 'Application rejected' });
   }));
 
-  // ── DEPARTMENTS (aggregated from supervisor data) ──────────────────
-
+  // департаменты
   app.get('/admin/departments', requireAdmin, asyncRoute(async (_req, res) => {
     const supervisors = await prisma.supervisor.findMany();
     const students = await prisma.user.findMany({ where: { role: 'student' } });
@@ -489,16 +477,14 @@ export function registerAdminRoutes(app: any): void {
   }));
 
   app.post('/admin/departments', requireAdmin, asyncRoute(async (_req, res) => {
-    // Departments are not a separate table; they are derived from user/supervisor data
-    res.json({ success: true, message: 'Department concept noted (derived from user data)' });
+    res.json({ success: true, message: 'Department concept noted' });
   }));
 
   app.patch('/admin/departments/:id', requireAdmin, asyncRoute(async (_req, res) => {
     res.json({ success: true, message: 'Department updated' });
   }));
 
-  // ── ANALYTICS ──────────────────────────────────────────────────────
-
+  // аналитика
   app.get('/admin/analytics', requireAdmin, asyncRoute(async (_req, res) => {
     const totalStudents = await prisma.user.count({ where: { role: 'student' } });
     const totalSupervisors = await prisma.supervisor.count();
@@ -510,7 +496,7 @@ export function registerAdminRoutes(app: any): void {
     const supervisors = await prisma.supervisor.findMany();
     const students = await prisma.user.findMany({ where: { role: 'student' } });
 
-    // Department distribution
+    // распределение по департаментам
     const deptCounts = new Map<string, number>();
     for (const s of students) {
       deptCounts.set(s.department, (deptCounts.get(s.department) || 0) + 1);
@@ -522,7 +508,7 @@ export function registerAdminRoutes(app: any): void {
       percentage: parseFloat(((count / totalForDept) * 100).toFixed(1)),
     }));
 
-    // Supervisor load
+    // загрузка преподов
     const supervisorLoad = supervisors.map(s => ({
       name: s.name.length > 15 ? s.name.substring(0, 12) + '...' : s.name,
       load: s.capacity > 0 ? parseFloat(((s.currentStudents / s.capacity) * 100).toFixed(1)) : 0,
@@ -554,8 +540,7 @@ export function registerAdminRoutes(app: any): void {
     });
   }));
 
-  // ── NOTIFICATIONS (generated from recent activity) ─────────────────
-
+  // уведы
   app.get('/admin/notifications', requireAdmin, asyncRoute(async (_req, res) => {
     const recentRequests = await prisma.request.findMany({
       orderBy: { updatedAt: 'desc' },
@@ -566,13 +551,13 @@ export function registerAdminRoutes(app: any): void {
     const notifications = recentRequests.map((r, i) => ({
       id: `notif-${r.id}`,
       title: r.status === 'pending' ? 'New Application Received' :
-             r.status === 'accepted' ? 'Application Approved' :
-             r.status === 'rejected' ? 'Application Rejected' : 'Application Updated',
+        r.status === 'accepted' ? 'Application Approved' :
+          r.status === 'rejected' ? 'Application Rejected' : 'Application Updated',
       message: `${r.studentName} — ${r.supervisor?.name || 'Unknown supervisor'}: ${r.message.substring(0, 80)}`,
       type: r.status === 'pending' ? 'application' :
-            r.status === 'accepted' ? 'success' :
-            r.status === 'rejected' ? 'error' : 'info',
-      read: i >= 3, // first 3 are unread
+        r.status === 'accepted' ? 'success' :
+          r.status === 'rejected' ? 'error' : 'info',
+      read: i >= 3, // первые 3 не прочитаны
       timestamp: r.updatedAt.toISOString(),
     }));
 
