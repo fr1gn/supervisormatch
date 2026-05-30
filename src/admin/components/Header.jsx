@@ -1,11 +1,24 @@
+import { useState, useEffect } from 'react';
 import { Bell, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SidebarTrigger } from './Sidebar';
 import { getInitials, stringToColor } from '../utils/helpers';
+import { adminApi } from '../api/client';
 
 export default function Header({ isMobile, onMenuClick, title, subtitle }) {
-  const adminName = 'Administrator';
-  const unreadCount = 3;
+  const stored = localStorage.getItem('admin_user');
+  const adminName = stored ? (JSON.parse(stored).name || 'Administrator') : 'Administrator';
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    adminApi.getNotifications()
+      .then(res => {
+        const list = res?.data || [];
+        setUnreadCount(list.filter(n => !n.read).length);
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <header
