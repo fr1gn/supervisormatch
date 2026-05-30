@@ -20,16 +20,22 @@ RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
     listen 80;
     server_name _;
+    root /usr/share/nginx/html;
 
     # фронтенд — SPA
     location / {
-        root /usr/share/nginx/html;
         index index.html;
         try_files $uri $uri/ /index.html;
     }
 
     # проксируем API на бэкенд
     location ~ ^/(auth|users|supervisors|requests|projects|upload|admin)(/|$) {
+        # Если это запрос страницы браузером (например, переход на /admin или /admin/login),
+        # отдаем index.html фронтенда, а не проксируем запрос на бэкенд.
+        if ($http_accept ~* "text/html") {
+            rewrite ^ /index.html last;
+        }
+
         proxy_pass http://backend:4000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
