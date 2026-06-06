@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  password         String
+  fullName         String
+  role             String   // "student" или "supervisor"
+  department       String
+  groupName        String?
+  phone            String?
+  studyLevel       String?
+  interests        String?
+  bio              String?
+  avatar           String?
+  refreshTokenHash String?
+  createdAt        DateTime @default(now())
+
+  supervisorProfile Supervisor?
+  studentRequests   Request[]      @relation("StudentRequests")
+  projects          Project[]      @relation("StudentProjects")
+  uploadedFiles     ProjectFile[]  @relation("UploadedFiles")
+}
+
+model Supervisor {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  email           String?
+  phone           String?
+  name            String
+  title           String
+  department      String
+  bio             String
+  capacity        Int      @default(5)
+  currentStudents Int      @default(0)
+  avatar          String
+  areas           String[]
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topics          Topic[]
+  requests        Request[]
+  projects        Project[]
+}
+
+model Topic {
+  id           String     @id @default(uuid())
+  supervisorId String
+  title        String
+  area         String
+  description  String
+  createdAt    DateTime   @default(now())
+
+  supervisor   Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+}
+
+model Request {
+  id            String     @id @default(uuid())
+  studentUserId String
+  studentEmail  String
+  studentName   String
+  supervisorId  String
+  message       String
+  status        String     @default("pending") // pending, accepted, rejected
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  student       User       @relation("StudentRequests", fields: [studentUserId], references: [id], onDelete: Cascade)
+  supervisor    Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
+  project       Project?
+}
+
+// проект создаётся автоматически когда супервайзер принимает заявку
+model Project {
+  id            String        @id @default(uuid())
+  title         String
+  description   String        @default("")
+  requestId     String        @unique
+  studentUserId String
+  supervisorId  String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  request       Request       @relation(fields: [requestId], references: [id])
+  student       User          @relation("StudentProjects", fields: [studentUserId], references: [id])
+  supervisor    Supervisor    @relation(fields: [supervisorId], references: [id])
+  files         ProjectFile[]
+}
+
+// файл внутри проекта — метаданные в базе, сам файл на диске
+model ProjectFile {
+  id          String   @id @default(uuid())
+  projectId   String
+  name        String   // описание файла ("Черновик главы 2")
+  fileName    String   // оригинальное имя файла (chapter2.docx)
+  filePath    String   // путь на диске
+  fileSize    Int      // размер в байтах
+  mimeType    String   // тип файла
+  uploadedBy  String   // кто загрузил
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader    User     @relation("UploadedFiles", fields: [uploadedBy], references: [id])
+}
