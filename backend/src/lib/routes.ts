@@ -527,6 +527,12 @@ export function registerRoutes(app: any): void {
     const parsed = updateStatusSchema.safeParse(req.body);
     if (!parsed.success) throw createError(400, 'Invalid status payload');
 
+    // проверяем что заявка не была уже принята — отменять нужно через удаление проекта
+    const existingRequest = await prisma.request.findUnique({ where: { id: (req as any).params.id } });
+    if (existingRequest?.status === 'accepted') {
+      throw createError(400, 'Cannot change status of an accepted request. To cancel, disband the project instead.');
+    }
+
     const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
     if (!supervisor) throw createError(404, 'Supervisor profile not found.');
 
@@ -740,6 +746,53 @@ export function registerRoutes(app: any): void {
     }
 
     await prisma.projectFile.delete({ where: { id: file.id } });
+    res.json({ ok: true });
+  }));
+
+  // расформировать проект — удаляет проект, файлы с диска и из БД, сбрасывает заявку
+  app.delete('/projects/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const project = await prisma.project.findUnique({
+      where: { id: (req as any).params.id },
+      include: {
+        files: true,
+        supervisor: { select: { id: true, userId: true } },
+      },
+    });
+    if (!project) throw createError(404, 'Project not found.');
+
+    // проверяем что юзер — участник проекта
+    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!isMember) throw createError(403, 'You are not a member of this project.');
+
+    // удаляем физические файлы с диска
+    for (const file of project.files) {
+      if (fs.existsSync(file.filePath)) {
+        try { fs.unlinkSync(file.filePath); } catch { /* файл мог быть уже удалён */ }
+      }
+    }
+
+    // пытаемся удалить папку проекта (если пустая)
+    const projectDir = path.join(process.cwd(), 'uploads', 'projects', project.id);
+    if (fs.existsSync(projectDir)) {
+      try { fs.rmdirSync(projectDir); } catch { /* папка не пустая — ничего страшного */ }
+    }
+
+    // сбрасываем статус заявки на rejected, чтобы студент мог подать заново
+    await prisma.request.update({
+      where: { id: project.requestId },
+      data: { status: 'rejected' },
+    }).catch(() => { });
+
+    // уменьшаем счётчик студентов у преподавателя
+    await prisma.supervisor.update({
+      where: { id: project.supervisor.id },
+      data: { currentStudents: { decrement: 1 } },
+    }).catch(() => { });
+
+    // удаляем проект (каскадно удалятся ProjectFile записи из БД)
+    await prisma.project.delete({ where: { id: project.id } });
+
     res.json({ ok: true });
   }));
 }

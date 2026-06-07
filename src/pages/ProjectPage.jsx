@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Upload, Download, Trash2, FileText, Image, File,
-  Pencil, Check, X, Users, FileSpreadsheet, FileArchive, FolderOpen,
+  Pencil, Check, X, Users, FileSpreadsheet, FileArchive, FolderOpen, AlertTriangle,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -148,6 +148,25 @@ export default function ProjectPage() {
     }
   }
 
+  // disband (delete) project
+  const disbandProject = async () => {
+    const ok = await confirm({
+      title: 'Disband Project',
+      message: 'Are you sure you want to disband and delete this project? All uploaded files will be permanently deleted, and the supervision request will be cancelled.',
+      confirmLabel: 'Disband',
+      variant: 'danger',
+    })
+    if (!ok) return
+
+    const res = await api.delete(`/projects/${id}`)
+    if (res.ok) {
+      toast.success('Project disbanded successfully')
+      navigate('/app/projects')
+    } else {
+      toast.error(res.error || 'Failed to disband project')
+    }
+  }
+
   // drag & drop
   const handleDrop = (e) => {
     e.preventDefault()
@@ -181,19 +200,45 @@ export default function ProjectPage() {
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '900px', margin: '0 auto' }}>
-      {/* back button */}
-      <motion.button
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        onClick={() => navigate('/app/projects')}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '0.5rem',
-          background: 'none', border: 'none', color: 'var(--text-secondary)',
-          cursor: 'pointer', fontSize: '0.9rem', padding: '0.5rem 0', marginBottom: '1rem',
-        }}
-      >
-        <ArrowLeft size={18} /> Back to Projects
-      </motion.button>
+      {/* header row: back + disband */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <motion.button
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => navigate('/app/projects')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            background: 'none', border: 'none', color: 'var(--text-secondary)',
+            cursor: 'pointer', fontSize: '0.9rem', padding: '0.5rem 0',
+          }}
+        >
+          <ArrowLeft size={18} /> Back to Projects
+        </motion.button>
+
+        <motion.button
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={disbandProject}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '8px',
+            padding: '0.45rem 0.85rem',
+            color: '#ef4444',
+            cursor: 'pointer',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)' }}
+        >
+          <AlertTriangle size={14} />
+          Disband Project
+        </motion.button>
+      </div>
 
       {/* project header */}
       <motion.div

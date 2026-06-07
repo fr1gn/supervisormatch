@@ -356,7 +356,7 @@ export default function SupervisorDashboardPage() {
                             Review
                           </button>
                         )}
-                        {request.status !== 'accepted' && (
+                        {(request.status === 'pending' || request.status === 'under review') && (
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
@@ -366,7 +366,7 @@ export default function SupervisorDashboardPage() {
                             Accept
                           </button>
                         )}
-                        {request.status !== 'rejected' && (
+                        {(request.status === 'pending' || request.status === 'under review') && (
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
