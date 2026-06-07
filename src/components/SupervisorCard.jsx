@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MapPin, Users, Send, ChevronDown, ChevronUp, CheckCircle, FileText, Upload, X, Sparkles } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
@@ -153,7 +154,7 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
     onClose()
   }
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         key="overlay"
@@ -449,7 +450,8 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
           </form>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
