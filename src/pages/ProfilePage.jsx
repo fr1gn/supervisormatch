@@ -274,6 +274,7 @@ function StudentProfile() {
                         background: active ? 'var(--accent)' : 'var(--surface)',
                         color: active ? '#fff' : 'var(--text-secondary)',
                         border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                        transition: 'none',
                       }}
                     >
                       {active && <Check size={13} strokeWidth={2.5} />}
