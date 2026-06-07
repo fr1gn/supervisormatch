@@ -1,4 +1,4 @@
-import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X } from 'lucide-react'
+import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
@@ -8,6 +8,198 @@ import { useToast } from '../context/ToastContext'
 import { useConfirm } from '../components/ConfirmDialog'
 import { getInitials, slotsLeft } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
+
+function StudentProfileModal({ student, onClose }) {
+  if (!student) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+        }}
+      >
+        <motion.div
+          key="modal"
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          transition={{ duration: 0.2 }}
+          onClick={(e) => e.stopPropagation()}
+          className="card"
+          style={{
+            width: '100%',
+            maxWidth: 500,
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            padding: 28,
+            position: 'relative',
+          }}
+        >
+          {/* Close */}
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              position: 'sticky',
+              float: 'right',
+              top: 0,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-tertiary)',
+              padding: 4,
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+            }}
+          >
+            <X size={18} />
+          </button>
+
+          {/* Avatar + Name + Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+            {student.studentAvatar ? (
+              <img
+                src={student.studentAvatar}
+                alt={student.studentName}
+                style={{
+                  width: 68,
+                  height: 68,
+                  borderRadius: 'var(--radius-full)',
+                  objectFit: 'cover',
+                  border: '3px solid var(--surface)',
+                  boxShadow: 'var(--shadow-md)',
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div style={{
+                width: 68,
+                height: 68,
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--accent-gradient)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.375rem',
+                fontWeight: 700,
+                flexShrink: 0,
+              }}>
+                {getInitials(student.studentName || student.studentEmail)}
+              </div>
+            )}
+            <div>
+              <h2 className="heading-subtitle" style={{ fontSize: '1.125rem', marginBottom: 6 }}>
+                {student.studentName || 'Student'}
+              </h2>
+              <StatusBadge status={student.status} />
+            </div>
+          </div>
+
+          {/* Info rows */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+            {/* Basic info section */}
+            <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+              Contacts
+            </p>
+
+            <InfoRow icon={Mail} label="Email" value={student.studentEmail} />
+            <InfoRow icon={Phone} label="Phone number" value={student.studentPhone} />
+
+            <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+            <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+              Study
+            </p>
+
+            <InfoRow icon={GraduationCap} label="Department" value={student.studentDepartment} />
+            <InfoRow icon={Users} label="Group" value={student.studentGroup} />
+            <InfoRow icon={BookOpen} label="Study level" value={student.studentStudyLevel} />
+
+            {student.studentInterests && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  Interests
+                </p>
+                <p className="text-body" style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
+                  {student.studentInterests}
+                </p>
+              </>
+            )}
+
+            {student.studentBio && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  About me
+                </p>
+                <p className="text-body" style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
+                  {student.studentBio}
+                </p>
+              </>
+            )}
+
+            {student.message && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  Message to the application
+                </p>
+                <p className="text-body" style={{
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-secondary)',
+                  borderLeft: '3px solid var(--accent)',
+                }}>
+                  {student.message}
+                </p>
+              </>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+function InfoRow({ icon: Icon, label, value }) {
+  if (!value) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <div style={{
+        width: 32, height: 32,
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--accent-soft)',
+        color: 'var(--accent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+      }}>
+        <Icon size={15} />
+      </div>
+      <div>
+        <p className="text-caption" style={{ fontSize: '0.7rem', marginBottom: 1 }}>{label}</p>
+        <p className="text-body" style={{ fontSize: '0.875rem' }}>{value}</p>
+      </div>
+    </div>
+  )
+}
 
 export default function SupervisorDashboardPage() {
   const {
@@ -24,6 +216,7 @@ export default function SupervisorDashboardPage() {
   const [activeTab, setActiveTab] = useState('requests')
   const [topicDraft, setTopicDraft] = useState({ title: '', area: '', description: '' })
   const [topicSaving, setTopicSaving] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState(null)
 
   const supervisor = getCurrentSupervisor()
 
@@ -96,6 +289,7 @@ export default function SupervisorDashboardPage() {
 
   return (
     <section>
+      <StudentProfileModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -286,33 +480,56 @@ export default function SupervisorDashboardPage() {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {request.studentAvatar ? (
-                            <img
-                              src={request.studentAvatar}
-                              alt={request.studentName}
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 'var(--radius-full)',
-                                objectFit: 'cover',
-                              }}
-                            />
-                          ) : (
-                            <div className="avatar avatar-sm">
-                              {getInitials(request.studentName || request.studentEmail)}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStudent(request)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 12,
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: 0,
+                              textAlign: 'left',
+                            }}
+                            title="View student profile"
+                          >
+                            {request.studentAvatar ? (
+                              <img
+                                src={request.studentAvatar}
+                                alt={request.studentName}
+                                style={{
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: 'var(--radius-full)',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            ) : (
+                              <div className="avatar avatar-sm">
+                                {getInitials(request.studentName || request.studentEmail)}
+                              </div>
+                            )}
+                            <div>
+                              <h3
+                                className="heading-subtitle"
+                                style={{
+                                  fontSize: '0.9375rem',
+                                  marginBottom: 2,
+                                  color: 'var(--accent)',
+                                  textDecoration: 'underline',
+                                  textDecorationStyle: 'dotted',
+                                  textUnderlineOffset: 3,
+                                }}
+                              >
+                                {request.studentName || request.studentEmail}
+                              </h3>
+                              <p className="text-caption" style={{ fontSize: '0.75rem' }}>
+                                {request.studentEmail}
+                              </p>
                             </div>
-                          )}
-                          <div>
-                            <h3
-                              className="heading-subtitle"
-                              style={{ fontSize: '0.9375rem', marginBottom: 2 }}
-                            >
-                              {request.studentName || request.studentEmail}
-                            </h3>
-                            <p className="text-caption" style={{ fontSize: '0.75rem' }}>
-                              {request.studentEmail}
-                            </p>
-                          </div>
+                          </button>
                         </div>
                         <StatusBadge status={request.status} />
                       </div>

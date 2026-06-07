@@ -1,4 +1,4 @@
-import { GraduationCap, ArrowRight, Eye, EyeOff, ArrowLeft, Moon, Sun } from 'lucide-react'
+import { GraduationCap, ArrowRight, Eye, EyeOff, ArrowLeft, Moon, Sun, Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -16,6 +16,15 @@ const initialState = {
   confirmPassword: '',
 }
 
+function getPasswordRules(password) {
+  return [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'Uppercase letter (A–Z)', met: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter (a–z)', met: /[a-z]/.test(password) },
+    { label: 'Number (0–9)', met: /[0-9]/.test(password) },
+  ];
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { registerUser } = useApp()
@@ -24,6 +33,10 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
+
+  const passwordRules = getPasswordRules(form.password)
+  const allRulesMet = passwordRules.every((r) => r.met)
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -35,8 +48,8 @@ export default function RegisterPage() {
     event.preventDefault()
     setLoading(true)
 
-    if (form.password.length < 6) {
-      setError('Password should contain at least 6 characters.')
+    if (!allRulesMet) {
+      setError('Пароль не соответствует требованиям безопасности.')
       setLoading(false)
       return
     }
@@ -347,6 +360,8 @@ export default function RegisterPage() {
                     type={showPassword ? 'text' : 'password'}
                     value={form.password}
                     onChange={handleChange}
+                    onFocus={() => setPasswordFocused(true)}
+                    onBlur={() => setPasswordFocused(false)}
                     required
                     style={{ paddingRight: 42 }}
                   />
@@ -384,6 +399,42 @@ export default function RegisterPage() {
                 />
               </div>
             </div>
+
+            {/* Password Rules */}
+            {(passwordFocused || form.password.length > 0) && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '6px 12px',
+                }}
+              >
+                {passwordRules.map((rule) => (
+                  <div
+                    key={rule.label}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: '0.75rem',
+                      color: rule.met ? 'var(--success)' : 'var(--text-tertiary)',
+                      transition: 'color 0.2s',
+                    }}
+                  >
+                    {rule.met
+                      ? <Check size={12} strokeWidth={2.5} />
+                      : <X size={12} strokeWidth={2.5} style={{ color: 'var(--text-tertiary)' }} />}
+                    {rule.label}
+                  </div>
+                ))}
+              </motion.div>
+            )}
 
             {error && (
               <motion.div

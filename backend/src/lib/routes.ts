@@ -506,14 +506,32 @@ export function registerRoutes(app: any): void {
     const requests = await prisma.request.findMany({
       where: { supervisorId: supervisor.id },
       orderBy: { createdAt: 'desc' },
-      include: { student: { select: { avatar: true } } },
+      include: {
+        student: {
+          select: {
+            avatar: true,
+            department: true,
+            groupName: true,
+            phone: true,
+            studyLevel: true,
+            interests: true,
+            bio: true,
+          },
+        },
+      },
     });
 
-    // вытаскиваем аватарку студента в корень объекта
+    // вытаскиваем все поля студента в корень объекта
     const result = requests.map(r => ({
       ...r,
       studentAvatar: r.student?.avatar || null,
-      student: undefined, // вложенный объект нам не нужен
+      studentDepartment: r.student?.department || null,
+      studentGroup: r.student?.groupName || null,
+      studentPhone: r.student?.phone || null,
+      studentStudyLevel: r.student?.studyLevel || null,
+      studentInterests: r.student?.interests || null,
+      studentBio: r.student?.bio || null,
+      student: undefined,
     }));
 
     res.json(result);
