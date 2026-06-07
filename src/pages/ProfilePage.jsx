@@ -111,9 +111,7 @@ function StudentProfile() {
 
       {/* Profile Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
+        initial={false}
         className="card"
         style={{ padding: 0 }}
       >
@@ -218,7 +216,7 @@ function StudentProfile() {
           </div>
 
           {/* Team Preferences */}
-          <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'grid', gap: 16 }}>
+          <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface)', display: 'grid', gap: 16, transition: 'none' }}>
             <div>
               <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>Team Preferences</p>
               <p className="text-caption" style={{ fontSize: '0.78rem' }}>Let other students find you for team formation.</p>
@@ -445,9 +443,7 @@ function SupervisorProfile() {
 
       {/* Profile Card */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
+        initial={false}
         className="card"
         style={{ padding: 0 }}
       >
