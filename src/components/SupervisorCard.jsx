@@ -170,32 +170,26 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
             maxWidth: 520,
             maxHeight: '90vh',
             overflowY: 'auto',
-            padding: 28,
+            padding: 0,
             position: 'relative',
           }}
         >
-          {/* Close */}
-          <button
-            type="button"
-            onClick={onClose}
+          {/* Header */}
+          <div
             style={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-tertiary)',
-              padding: 4,
-              borderRadius: 'var(--radius-sm)',
               display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '24px 28px',
+              borderBottom: '1px solid var(--border)',
+              position: 'sticky',
+              top: 0,
+              background: 'var(--surface)',
+              zIndex: 1,
+              borderTopLeftRadius: 'inherit',
+              borderTopRightRadius: 'inherit',
             }}
           >
-            <X size={18} />
-          </button>
-
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
             {supervisor.avatar ? (
               <img
                 src={supervisor.avatar}
@@ -213,17 +207,43 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
                 {getInitials(supervisor.name)}
               </div>
             )}
-            <div>
-              <h2 className="heading-subtitle" style={{ fontSize: '1.0625rem', marginBottom: 2 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2
+                className="heading-subtitle"
+                style={{
+                  fontSize: '1.0625rem',
+                  marginBottom: 2,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 Apply to {supervisor.name}
               </h2>
               <p className="text-caption" style={{ fontSize: '0.8125rem' }}>
                 {supervisor.title} · {supervisor.department}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-tertiary)',
+                padding: 6,
+                borderRadius: 'var(--radius-sm)',
+                display: 'flex',
+                flexShrink: 0,
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18, padding: 28 }}>
             {/* Research Interests */}
             <div>
               <label className="label" htmlFor="researchInterests">
@@ -350,7 +370,16 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
             />
 
             {/* Submit */}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                justifyContent: 'flex-end',
+                paddingTop: 18,
+                marginTop: 2,
+                borderTop: '1px solid var(--border)',
+              }}
+            >
               <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={isSending}>
                 Cancel
               </button>
