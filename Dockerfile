@@ -29,7 +29,7 @@ server {
     }
 
     # проксируем API на бэкенд
-    location ~ ^/(auth|users|supervisors|requests|projects|upload|admin|students|teams|invitations)(/|$) {
+    location ~ ^/(auth|users|supervisors|topics|requests|projects|upload|admin|students|teams|invitations)(/|$) {
         # Если это запрос страницы браузером (например, переход на /admin или /admin/login),
         # отдаем index.html фронтенда, а не проксируем запрос на бэкенд.
         if ($http_accept ~* "text/html") {

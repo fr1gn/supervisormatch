@@ -1,5 +1,6 @@
 import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap, FileText, Download, Sparkles, Tag, Archive, ArchiveRestore } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
@@ -91,7 +92,7 @@ function ResumeDownloadButton({ requestId }) {
 function StudentProfileModal({ student, onClose }) {
   if (!student) return null
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         key="overlay"
@@ -295,7 +296,8 @@ function StudentProfileModal({ student, onClose }) {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
@@ -382,7 +384,7 @@ function AssignTopicModal({ open, request, availableTopics, onClose, onConfirm }
     ? (request?.team?.name || 'this team')
     : (request?.studentName || 'this student')
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         key="topic-overlay"
@@ -498,7 +500,8 @@ function AssignTopicModal({ open, request, availableTopics, onClose, onConfirm }
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   )
 }
 
