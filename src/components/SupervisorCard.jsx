@@ -98,7 +98,6 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
 
   // ===== Шаг 1: тип заявки =====
   const [applicationType, setApplicationType] = useState('individual') // 'individual' | 'team'
-  const [openToTeamFormation, setOpenToTeamFormation] = useState(false)
   const [teamName, setTeamName] = useState('')
   const [selectedMembers, setSelectedMembers] = useState([]) // [{ id, fullName, department, groupName }]
   const [memberQuery, setMemberQuery] = useState('')
@@ -206,8 +205,6 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
         return
       }
       formData.append('teamId', teamRes.data.id)
-    } else {
-      formData.append('openToTeamFormation', openToTeamFormation ? 'true' : 'false')
     }
 
     const result = await onSubmit(formData)
@@ -398,21 +395,7 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
                   })}
                 </div>
 
-                {/* Individual → open to joining a team */}
-                {applicationType === 'individual' && (
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={openToTeamFormation}
-                      onChange={(e) => setOpenToTeamFormation(e.target.checked)}
-                      style={{ accentColor: 'var(--accent)', marginTop: 2 }}
-                    />
-                    <div>
-                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>I am open to joining a team</div>
-                      <div className="text-caption" style={{ fontSize: '0.75rem' }}>Other students will be able to discover you and send team invitations.</div>
-                    </div>
-                  </label>
-                )}
+
 
                 {/* Team → name + member picker */}
                 {applicationType === 'team' && (

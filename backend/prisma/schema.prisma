@@ -89,7 +89,6 @@ model Request {
 
   // team support — defaults keep existing individual requests valid
   applicationType     String  @default("individual") // "individual" | "team"
-  openToTeamFormation Boolean @default(false) // for individual requests
   teamId              String?
   team                Team?   @relation(fields: [teamId], references: [id])
 

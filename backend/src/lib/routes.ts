@@ -114,10 +114,6 @@ const createRequestSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v || null),
-  openToTeamFormation: z
-    .union([z.string(), z.boolean()])
-    .optional()
-    .transform((v) => v === true || v === 'true'),
 });
 
 const createTeamSchema = z.object({
@@ -764,7 +760,6 @@ export function registerRoutes(app: any): void {
         status: 'pending',
         applicationType: parsed.data.applicationType,
         teamId,
-        openToTeamFormation: parsed.data.applicationType === 'individual' ? parsed.data.openToTeamFormation : false,
       }
     });
 

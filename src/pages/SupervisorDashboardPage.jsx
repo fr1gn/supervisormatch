@@ -908,14 +908,6 @@ export default function SupervisorDashboardPage() {
                                 <Users size={11} strokeWidth={2.2} />
                                 {isTeam ? 'Team Application' : 'Individual Application'}
                               </span>
-                              {!isTeam && (
-                                <span className="text-caption" style={{ fontSize: '0.72rem' }}>
-                                  Open to Team Formation:{' '}
-                                  <strong style={{ color: request.openToTeamFormation ? 'var(--success)' : 'var(--text-secondary)' }}>
-                                    {request.openToTeamFormation ? 'Yes' : 'No'}
-                                  </strong>
-                                </span>
-                              )}
                             </div>
 
                             {isTeam && (
