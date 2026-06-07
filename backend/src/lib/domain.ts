@@ -10,24 +10,17 @@ type RequestLike = {
   studentUserId?: string;
 };
 
-// сколько слотов занимает заявка: индивидуальная — 1, командная — число подтверждённых участников
-export async function getRequestSeatCount(request: RequestLike): Promise<number> {
-  if (request.applicationType !== 'team' || !request.teamId) return 1;
-  const accepted = await prisma.teamMember.count({
-    where: { teamId: request.teamId, status: 'accepted' },
-  });
-  return Math.max(1, accepted);
+// сколько слотов занимает заявка: ОДНА заявка (команда или одиночка) = 1 слот,
+// независимо от числа участников команды
+export async function getRequestSeatCount(_request: RequestLike): Promise<number> {
+  return 1;
 }
 
-// авторитетная загрузка супервайзера: сумма слотов по всем ПРИНЯТЫМ заявкам
+// авторитетная загрузка супервайзера: число ПРИНЯТЫХ заявок (1 заявка = 1 слот)
 export async function computeSupervisorLoad(supervisorId: string): Promise<number> {
-  const accepted = await prisma.request.findMany({
+  return prisma.request.count({
     where: { supervisorId, status: 'accepted' },
-    select: { applicationType: true, teamId: true },
   });
-  let total = 0;
-  for (const r of accepted) total += await getRequestSeatCount(r);
-  return total;
 }
 
 // пересчитываем и сохраняем currentStudents из источника правды.

@@ -1053,37 +1053,13 @@ export function registerRoutes(app: any): void {
 
     const newStatus = parsed.data.action === 'accept' ? 'accepted' : 'declined';
 
-    // #1 (edge) — если команда уже принята супервайзером, новый участник занимает слот.
-    // не даём вступить, если это превысит вместимость супервайзера.
-    if (newStatus === 'accepted') {
-      const acceptedReq = await prisma.request.findFirst({
-        where: { teamId: invitation.teamId, status: 'accepted' },
-        select: { supervisorId: true },
-      });
-      if (acceptedReq) {
-        const supervisor = await prisma.supervisor.findUnique({
-          where: { id: acceptedReq.supervisorId },
-          select: { capacity: true },
-        });
-        const load = await computeSupervisorLoad(acceptedReq.supervisorId);
-        if (supervisor && load + 1 > supervisor.capacity) {
-          throw createError(409, "Supervisor capacity is full — you cannot join this team's accepted project.");
-        }
-      }
-    }
-
+    // 1 команда = 1 слот, поэтому вступление/выход участника НЕ меняет вместимость супервайзера —
+    // дополнительная проверка слотов и пересчёт здесь не нужны.
     await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: newStatus } });
     await prisma.teamMember.updateMany({
       where: { teamId: invitation.teamId, userId: userPayload.sub },
       data: { status: newStatus },
     });
-
-    // #1 — если команда уже имеет проект, пересчитываем загрузку супервайзера (новый/ушедший участник)
-    const teamReq = await prisma.request.findFirst({
-      where: { teamId: invitation.teamId, status: 'accepted' },
-      select: { supervisorId: true },
-    });
-    if (teamReq) await recountSupervisor(teamReq.supervisorId);
 
     res.json({ ok: true, status: newStatus });
   }));
