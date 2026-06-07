@@ -624,18 +624,6 @@ button:focus:not(:focus-visible) {
   }
 }
 
-/* ===== SKELETON SHIMMER ===== */
-@keyframes skeleton-shimmer {
-  0% { opacity: 0.5; }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.5; }
-}
-
-.card > div[style*="background: var(--bg-secondary)"],
-.card div[style*="background: var(--bg-secondary)"] {
-  animation: skeleton-shimmer 1.5s ease-in-out infinite;
-}
-
 /* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
   width: 6px;
