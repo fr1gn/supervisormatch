@@ -1,4 +1,4 @@
-import { Lightbulb, Save, Shield, Key } from 'lucide-react'
+import { Lightbulb, Save, Shield, Key, Check } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useApp } from '../context/AppContext'
@@ -262,9 +262,21 @@ function StudentProfile() {
                       type="button"
                       key={skill}
                       onClick={() => toggleSkill(skill)}
-                      className={`badge ${active ? 'badge-accent' : 'badge-neutral'}`}
-                      style={{ cursor: 'pointer', border: 'none', fontSize: '0.75rem', padding: '6px 12px' }}
+                      style={{
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        padding: '7px 14px',
+                        borderRadius: 'var(--radius-full)',
+                        background: active ? 'var(--accent)' : 'var(--surface)',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                        border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                      }}
                     >
+                      {active && <Check size={13} strokeWidth={2.5} />}
                       {skill}
                     </button>
                   )
