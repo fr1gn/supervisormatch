@@ -278,6 +278,7 @@ function SupervisorProfile() {
       areas: (supervisor?.areas || []).join(', '),
       bio: supervisor?.bio || '',
       avatar: supervisor?.avatar || '',
+      capacity: supervisor?.capacity || 8,
     }),
     [supervisor, session],
   )
@@ -320,6 +321,7 @@ function SupervisorProfile() {
     const payload = {
       ...form,
       areas: form.areas.split(',').map(s => s.trim()).filter(Boolean),
+      capacity: parseInt(form.capacity, 10) || 8,
     }
     const result = await updateSupervisorProfile(payload)
 
@@ -417,6 +419,23 @@ function SupervisorProfile() {
             <div>
               <label className="label" htmlFor="department">Department</label>
               <input className="input" id="department" name="department" value={form.department} onChange={onChange} required />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="label" htmlFor="capacity">Max Students (Capacity)</label>
+              <input
+                className="input"
+                id="capacity"
+                name="capacity"
+                type="number"
+                min={1}
+                max={50}
+                value={form.capacity}
+                onChange={onChange}
+                style={{ maxWidth: 180 }}
+              />
+              <p className="text-caption" style={{ marginTop: 4, fontSize: '0.75rem' }}>
+                The maximum number of students you can supervise at once.
+              </p>
             </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="label" htmlFor="avatarFile">Profile Photo</label>

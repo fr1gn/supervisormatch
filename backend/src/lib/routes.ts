@@ -54,6 +54,7 @@ const updateSupervisorSchema = z.object({
   bio: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).min(1),
   avatar: z.string().trim().optional(),
+  capacity: z.number().int().min(1).max(50).optional(),
 });
 
 const addTopicSchema = z.object({
@@ -363,6 +364,11 @@ export function registerRoutes(app: any): void {
     if (!supervisor) throw createError(404, 'Supervisor not found.');
     if (supervisor.userId !== userPayload.sub) throw createError(403, 'You can only edit your own supervisor profile.');
 
+    // если передали capacity — не даём поставить меньше текущего кол-ва студентов
+    const newCapacity = parsed.data.capacity !== undefined
+      ? Math.max(parsed.data.capacity, supervisor.currentStudents)
+      : undefined;
+
     const updatedSupervisor = await prisma.supervisor.update({
       where: { id: supervisor.id },
       data: {
@@ -373,6 +379,7 @@ export function registerRoutes(app: any): void {
         bio: parsed.data.bio || '',
         areas: parsed.data.areas,
         avatar: parsed.data.avatar ?? supervisor.avatar,
+        ...(newCapacity !== undefined ? { capacity: newCapacity } : {}),
       },
       include: { topics: true }
     });
@@ -584,12 +591,15 @@ export function registerRoutes(app: any): void {
       }
     }
 
-    // если передумал после принятия - уменьшаем счётчик обратно
+    // если передумал после принятия - уменьшаем счётчик обратно (не ниже 0)
     if (parsed.data.status !== 'accepted' && request.status === 'accepted') {
-      await prisma.supervisor.update({
-        where: { id: supervisor.id },
-        data: { currentStudents: { decrement: 1 } }
-      });
+      const freshSup = await prisma.supervisor.findUnique({ where: { id: supervisor.id } });
+      if (freshSup && freshSup.currentStudents > 0) {
+        await prisma.supervisor.update({
+          where: { id: supervisor.id },
+          data: { currentStudents: Math.max(0, freshSup.currentStudents - 1) }
+        });
+      }
     }
 
     const updatedRequest = await prisma.request.update({
@@ -802,11 +812,14 @@ export function registerRoutes(app: any): void {
       data: { status: 'rejected' },
     }).catch(() => { });
 
-    // уменьшаем счётчик студентов у преподавателя
-    await prisma.supervisor.update({
-      where: { id: project.supervisor.id },
-      data: { currentStudents: { decrement: 1 } },
-    }).catch(() => { });
+    // уменьшаем счётчик студентов у преподавателя (не ниже 0)
+    const freshSupervisor = await prisma.supervisor.findUnique({ where: { id: project.supervisor.id } });
+    if (freshSupervisor && freshSupervisor.currentStudents > 0) {
+      await prisma.supervisor.update({
+        where: { id: project.supervisor.id },
+        data: { currentStudents: Math.max(0, freshSupervisor.currentStudents - 1) },
+      }).catch(() => { });
+    }
 
     // удаляем проект (каскадно удалятся ProjectFile записи из БД)
     await prisma.project.delete({ where: { id: project.id } });
