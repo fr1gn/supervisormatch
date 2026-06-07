@@ -10,29 +10,28 @@ function ApplicationScorePreview({ researchInterests, message, resumeFile }) {
   if (message.trim().length > 0) score += 20
   if (resumeFile) score += 30
 
-  const label = score >= 90 ? 'Strong Application' : score >= 70 ? 'Good Application' : 'Basic Application'
-  const color = score >= 90 ? 'var(--success)' : score >= 70 ? 'var(--accent)' : 'var(--warning)'
-
-  if (score === 0) return null
+  // 0 → Incomplete, 1 → Basic, 2 → Good, 3 → Strong
+  const stage = score >= 90 ? 3 : score >= 70 ? 2 : score > 0 ? 1 : 0
+  const label = ['Incomplete', 'Basic', 'Good', 'Strong'][stage]
+  const color = stage === 3 ? 'var(--success)' : stage === 2 ? 'var(--accent)' : stage === 1 ? 'var(--warning)' : 'var(--text-tertiary)'
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       style={{
-        padding: '12px 16px',
+        padding: '14px 16px',
         borderRadius: 'var(--radius-md)',
-        background: `${color}12`,
-        border: `1.5px solid ${color}30`,
+        background: `color-mix(in srgb, ${color} 8%, transparent)`,
+        border: `1.5px solid color-mix(in srgb, ${color} 22%, transparent)`,
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 14,
+        transition: 'background var(--transition-fast), border-color var(--transition-fast)',
       }}
     >
       <div style={{
         width: 40, height: 40,
         borderRadius: 'var(--radius-full)',
-        background: `${color}18`,
+        background: `color-mix(in srgb, ${color} 15%, transparent)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -40,30 +39,47 @@ function ApplicationScorePreview({ researchInterests, message, resumeFile }) {
       }}>
         <Sparkles size={18} style={{ color }} />
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span style={{ fontSize: '1.125rem', fontWeight: 700, color }}>{score}%</span>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color, opacity: 0.85 }}>{label}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Application Strength
+          </span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color, marginLeft: 'auto' }}>
+            {label}{score > 0 ? ` · ${score}%` : ''}
+          </span>
         </div>
-        <div style={{
-          height: 5,
-          borderRadius: 'var(--radius-full)',
-          background: `${color}20`,
-          overflow: 'hidden',
-        }}>
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${score}%` }}
-            transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-            style={{
-              height: '100%',
-              borderRadius: 'var(--radius-full)',
-              background: color,
-            }}
-          />
+        {/* 3-segment indicator */}
+        <div style={{ display: 'flex', gap: 5 }}>
+          {[1, 2, 3].map((seg) => {
+            const filled = stage >= seg
+            return (
+              <div
+                key={seg}
+                style={{
+                  flex: 1,
+                  height: 6,
+                  borderRadius: 'var(--radius-full)',
+                  background: filled ? `color-mix(in srgb, ${color} 22%, transparent)` : 'var(--border)',
+                  overflow: 'hidden',
+                }}
+              >
+                <motion.div
+                  initial={false}
+                  animate={{ scaleX: filled ? 1 : 0 }}
+                  transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  style={{
+                    height: '100%',
+                    transformOrigin: 'left',
+                    borderRadius: 'var(--radius-full)',
+                    background: color,
+                  }}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -167,8 +183,8 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
           className="card"
           style={{
             width: '100%',
-            maxWidth: 520,
-            maxHeight: '90vh',
+            maxWidth: 760,
+            maxHeight: '92vh',
             overflowY: 'auto',
             padding: 0,
             position: 'relative',
@@ -180,7 +196,7 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
               display: 'flex',
               alignItems: 'center',
               gap: 14,
-              padding: '24px 28px',
+              padding: 'clamp(20px, 3vw, 26px) clamp(20px, 4vw, 32px)',
               borderBottom: '1px solid var(--border)',
               position: 'sticky',
               top: 0,
@@ -243,7 +259,7 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 18, padding: 28 }}>
+          <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 22, padding: 'clamp(20px, 4vw, 32px)' }}>
             {/* Research Interests */}
             <div>
               <label className="label" htmlFor="researchInterests">
@@ -252,14 +268,14 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
               <textarea
                 className="input"
                 id="researchInterests"
-                rows={3}
+                rows={5}
                 value={researchInterests}
+                style={{ minHeight: 132, ...(errors.researchInterests ? { borderColor: 'var(--danger)' } : {}) }}
                 onChange={(e) => {
                   setResearchInterests(e.target.value)
                   if (errors.researchInterests) setErrors(prev => ({ ...prev, researchInterests: '' }))
                 }}
                 placeholder="Describe your research interests relevant to this supervisor..."
-                style={errors.researchInterests ? { borderColor: 'var(--danger)' } : undefined}
               />
               {errors.researchInterests && (
                 <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4, fontWeight: 500 }}>
@@ -288,73 +304,115 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
               <label className="label">
                 Resume / CV <span className="text-caption">(optional, PDF only, max 5 MB)</span>
               </label>
-              <div
-                style={{
-                  border: `1.5px dashed ${resumeError ? 'var(--danger)' : resumeFile ? 'var(--success)' : 'var(--border)'}`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: '16px 20px',
-                  background: resumeFile ? 'var(--success-soft)' : 'var(--surface)',
-                  transition: 'all var(--transition-fast)',
-                }}
-              >
-                {resumeFile ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <FileText size={20} style={{ color: 'var(--success)', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{
-                        fontSize: '0.8125rem',
-                        fontWeight: 600,
-                        color: 'var(--success-text)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {resumeFile.name}
-                      </p>
-                      <p className="text-caption" style={{ fontSize: '0.6875rem' }}>
-                        {(resumeFile.size / (1024 * 1024)).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResumeFile(null)
-                        setResumeError('')
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: 'var(--danger)',
-                        padding: 4,
-                        display: 'flex',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <label style={{
+              {resumeFile ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 6,
-                    cursor: 'pointer',
+                    gap: 12,
+                    border: '1.5px solid var(--success)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    background: 'var(--success-soft)',
+                  }}
+                >
+                  <div style={{
+                    width: 38, height: 38,
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
                   }}>
-                    <Upload size={22} style={{ color: 'var(--text-tertiary)' }} />
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                    <FileText size={18} style={{ color: 'var(--success)' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <CheckCircle size={13} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--success-text)' }}>
+                        Resume uploaded successfully
+                      </span>
+                    </div>
+                    <p style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {resumeFile.name}
+                      <span className="text-caption" style={{ fontWeight: 400, marginLeft: 8 }}>
+                        {(resumeFile.size / (1024 * 1024)).toFixed(2)} MB
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumeFile(null)
+                      setResumeError('')
+                    }}
+                    aria-label="Remove resume"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-tertiary)',
+                      padding: 6,
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </motion.div>
+              ) : (
+                <label
+                  className="upload-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    border: `1.5px dashed ${resumeError ? 'var(--danger)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px 16px',
+                    background: 'var(--surface)',
+                    cursor: 'pointer',
+                    transition: 'border-color var(--transition-fast), background var(--transition-fast)',
+                  }}
+                >
+                  <div style={{
+                    width: 38, height: 38,
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--accent-soft, var(--bg-secondary))',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Upload size={18} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       Click to upload PDF
-                    </span>
-                    <input
-                      type="file"
-                      accept="application/pdf,.pdf"
-                      onChange={handleFileChange}
-                      style={{ display: 'none' }}
+                    </p>
+                    <p className="text-caption" style={{ fontSize: '0.75rem' }}>
+                      PDF only · max 5 MB
+                    </p>
+                  </div>
+                  <span className="btn btn-secondary btn-sm" style={{ pointerEvents: 'none', flexShrink: 0 }}>
+                    Browse
+                  </span>
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
                     />
                   </label>
                 )}
-              </div>
               {resumeError && (
                 <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4, fontWeight: 500 }}>
                   {resumeError}
