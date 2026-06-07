@@ -326,26 +326,31 @@ export default function ProjectPage() {
             <Users size={16} style={{ color: 'var(--text-tertiary)' }} />
             <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>Participants:</span>
           </div>
-          {/* student */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <div style={{
-              width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden',
-              background: 'var(--bg-secondary)',
-            }}>
-              {project.student?.avatar ? (
-                <img src={project.student.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-tertiary)' }}>
-                  {project.student?.fullName?.[0]}
-                </div>
-              )}
+          {/* students / team members — backend returns the full accepted participant list */}
+          {(project.participants && project.participants.length > 0
+            ? project.participants
+            : [{ userId: project.student?.id, fullName: project.student?.fullName, avatar: project.student?.avatar, role: 'student' }]
+          ).map((p) => (
+            <div key={p.userId || p.fullName} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{
+                width: '24px', height: '24px', borderRadius: '50%', overflow: 'hidden',
+                background: 'var(--bg-secondary)',
+              }}>
+                {p.avatar ? (
+                  <img src={p.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: 'var(--text-tertiary)' }}>
+                    {p.fullName?.[0]}
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{p.fullName}</span>
+              <span style={{
+                fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
+                background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent)',
+              }}>{p.role === 'leader' ? 'team leader' : p.role === 'member' ? 'member' : 'student'}</span>
             </div>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{project.student?.fullName}</span>
-            <span style={{
-              fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
-              background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent)',
-            }}>student</span>
-          </div>
+          ))}
           {/* supervisor */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <div style={{

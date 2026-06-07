@@ -2,6 +2,13 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthedRequest } from './types';
 import { prisma } from './prisma';
+import {
+  getRequestSeatCount,
+  computeSupervisorLoad,
+  recountSupervisor,
+  findExistingAssignment,
+  invalidateCompetingRequests,
+} from './domain';
 
 
 interface AdminJwtPayload {
@@ -420,14 +427,21 @@ export function registerAdminRoutes(app: any): void {
   app.post('/admin/applications/:id/approve', requireAdmin, asyncRoute(async (req, res) => {
     const r = await prisma.request.findUnique({ where: { id: req.params.id as string } });
     if (!r) return res.status(404).json({ message: 'Application not found' });
+    if (r.status === 'accepted') return res.json({ success: true, message: 'Application already approved' });
+
+    // #6 — нельзя принять студента/команду, уже назначенных другому супервайзеру
+    const conflict = await findExistingAssignment(r);
+    if (conflict) return res.status(409).json({ message: conflict });
+
+    // вместимость считаем от актуальной загрузки (источник правды)
+    const supervisor = await prisma.supervisor.findUnique({ where: { id: r.supervisorId }, select: { capacity: true } });
+    const seatCount = await getRequestSeatCount(r);
+    const load = await computeSupervisorLoad(r.supervisorId);
+    if (supervisor && load + seatCount > supervisor.capacity) {
+      return res.status(400).json({ message: 'Supervisor has no remaining capacity for this application.' });
+    }
 
     await prisma.request.update({ where: { id: r.id }, data: { status: 'accepted' } });
-
-    // увеличиваем счетчик студентов у препода
-    await prisma.supervisor.update({
-      where: { id: r.supervisorId },
-      data: { currentStudents: { increment: 1 } },
-    }).catch(() => { });
 
     // создаём проект если его ещё нет для этой заявки
     const existingProject = await prisma.project.findUnique({ where: { requestId: r.id } });
@@ -443,6 +457,10 @@ export function registerAdminRoutes(app: any): void {
       }).catch(() => { });
     }
 
+    // #6 — гасим конкурирующие заявки и пересчитываем загрузку из источника правды
+    await invalidateCompetingRequests(r);
+    await recountSupervisor(r.supervisorId);
+
     res.json({ success: true, message: 'Application approved successfully' });
   }));
 
@@ -451,6 +469,9 @@ export function registerAdminRoutes(app: any): void {
     if (!r) return res.status(404).json({ message: 'Application not found' });
 
     await prisma.request.update({ where: { id: r.id }, data: { status: 'rejected' } });
+
+    // если заявка была принята — пересчитываем загрузку супервайзера (слот освободился)
+    await recountSupervisor(r.supervisorId);
 
     res.json({ success: true, message: 'Application rejected' });
   }));

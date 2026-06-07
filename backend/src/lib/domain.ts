@@ -1,0 +1,186 @@
+// Общая доменная логика: вместимость супервайзера и участники проекта.
+// Источник правды — реальные принятые заявки и подтверждённые участники команд,
+// а НЕ хранимые счётчики. Это устраняет дрейф currentStudents и рассинхрон доступа.
+import { prisma } from './prisma';
+
+type RequestLike = {
+  id?: string;
+  applicationType?: string | null;
+  teamId?: string | null;
+  studentUserId?: string;
+};
+
+// сколько слотов занимает заявка: индивидуальная — 1, командная — число подтверждённых участников
+export async function getRequestSeatCount(request: RequestLike): Promise<number> {
+  if (request.applicationType !== 'team' || !request.teamId) return 1;
+  const accepted = await prisma.teamMember.count({
+    where: { teamId: request.teamId, status: 'accepted' },
+  });
+  return Math.max(1, accepted);
+}
+
+// авторитетная загрузка супервайзера: сумма слотов по всем ПРИНЯТЫМ заявкам
+export async function computeSupervisorLoad(supervisorId: string): Promise<number> {
+  const accepted = await prisma.request.findMany({
+    where: { supervisorId, status: 'accepted' },
+    select: { applicationType: true, teamId: true },
+  });
+  let total = 0;
+  for (const r of accepted) total += await getRequestSeatCount(r);
+  return total;
+}
+
+// пересчитываем и сохраняем currentStudents из источника правды.
+// зажимаем в [0, capacity] — значение никогда не превышает максимум.
+export async function recountSupervisor(supervisorId: string): Promise<number> {
+  const supervisor = await prisma.supervisor.findUnique({
+    where: { id: supervisorId },
+    select: { capacity: true, currentStudents: true },
+  });
+  if (!supervisor) return 0;
+  const load = await computeSupervisorLoad(supervisorId);
+  const clamped = Math.max(0, Math.min(load, supervisor.capacity));
+  if (clamped !== supervisor.currentStudents) {
+    await prisma.supervisor
+      .update({ where: { id: supervisorId }, data: { currentStudents: clamped } })
+      .catch(() => {});
+  }
+  return clamped;
+}
+
+// userId всех участников проекта: автор/лидер + подтверждённые члены команды
+export async function getProjectParticipantIds(project: {
+  studentUserId: string;
+  requestId: string;
+}): Promise<string[]> {
+  const ids = new Set<string>([project.studentUserId]);
+  const request = await prisma.request.findUnique({
+    where: { id: project.requestId },
+    select: { applicationType: true, teamId: true },
+  });
+  if (request?.applicationType === 'team' && request.teamId) {
+    const members = await prisma.teamMember.findMany({
+      where: { teamId: request.teamId, status: 'accepted' },
+      select: { userId: true },
+    });
+    members.forEach((m) => ids.add(m.userId));
+  }
+  return [...ids];
+}
+
+// участники проекта в виде объектов для отображения
+export async function getProjectParticipants(project: {
+  studentUserId: string;
+  requestId: string;
+}): Promise<Array<{ userId: string; fullName: string; avatar: string | null; role: string }>> {
+  const request = await prisma.request.findUnique({
+    where: { id: project.requestId },
+    select: { applicationType: true, teamId: true },
+  });
+
+  if (request?.applicationType === 'team' && request.teamId) {
+    const members = await prisma.teamMember.findMany({
+      where: { teamId: request.teamId, status: 'accepted' },
+      include: { user: { select: { id: true, fullName: true, avatar: true } } },
+      orderBy: { joinedAt: 'asc' },
+    });
+    return members.map((m) => ({
+      userId: m.userId,
+      fullName: m.user?.fullName || '',
+      avatar: m.user?.avatar || null,
+      role: m.role === 'leader' ? 'leader' : 'member',
+    }));
+  }
+
+  const student = await prisma.user.findUnique({
+    where: { id: project.studentUserId },
+    select: { fullName: true, avatar: true },
+  });
+  return [
+    {
+      userId: project.studentUserId,
+      fullName: student?.fullName || '',
+      avatar: student?.avatar || null,
+      role: 'student',
+    },
+  ];
+}
+
+// может ли пользователь видеть/трогать проект (студент-участник или супервайзер проекта)
+export async function userCanAccessProject(
+  project: { studentUserId: string; requestId: string; supervisor: { userId: string } },
+  userId: string,
+): Promise<boolean> {
+  if (project.supervisor.userId === userId) return true;
+  if (project.studentUserId === userId) return true;
+  const participantIds = await getProjectParticipantIds(project);
+  return participantIds.includes(userId);
+}
+
+// студенты, которые уже «заняты» и не должны показываться в Find Teammates
+export async function getCommittedStudentIds(): Promise<Set<string>> {
+  const ids = new Set<string>();
+
+  // 1) приняли приглашение и вступили в чью-то команду (role member, status accepted)
+  const joined = await prisma.teamMember.findMany({
+    where: { status: 'accepted', role: 'member' },
+    select: { userId: true },
+  });
+  joined.forEach((m) => ids.add(m.userId));
+
+  // 2) любой подтверждённый участник команды, у которой уже есть принятая заявка (включая лидера)
+  const acceptedTeamReqs = await prisma.request.findMany({
+    where: { status: 'accepted', teamId: { not: null } },
+    select: { teamId: true },
+  });
+  const teamIds = acceptedTeamReqs.map((r) => r.teamId!).filter(Boolean);
+  if (teamIds.length) {
+    const committed = await prisma.teamMember.findMany({
+      where: { teamId: { in: teamIds }, status: 'accepted' },
+      select: { userId: true },
+    });
+    committed.forEach((m) => ids.add(m.userId));
+  }
+
+  // 3) студенты с принятой индивидуальной заявкой (у них уже есть супервайзер)
+  const indivAccepted = await prisma.request.findMany({
+    where: { status: 'accepted', applicationType: 'individual' },
+    select: { studentUserId: true },
+  });
+  indivAccepted.forEach((r) => ids.add(r.studentUserId));
+
+  return ids;
+}
+
+// уже ли назначены этот студент/команда другому супервайзеру (для блокировки повторного принятия)
+export async function findExistingAssignment(
+  request: { id: string; studentUserId: string; teamId?: string | null },
+): Promise<string | null> {
+  if (request.teamId) {
+    const otherTeam = await prisma.request.findFirst({
+      where: { teamId: request.teamId, status: 'accepted', id: { not: request.id } },
+    });
+    if (otherTeam) return 'This team has already been accepted by a supervisor.';
+  }
+  const otherStudent = await prisma.request.findFirst({
+    where: { studentUserId: request.studentUserId, status: 'accepted', id: { not: request.id } },
+  });
+  if (otherStudent) return 'This student has already been accepted by a supervisor.';
+  return null;
+}
+
+// после принятия — гасим конкурирующие заявки того же студента/команды
+export async function invalidateCompetingRequests(
+  request: { id: string; studentUserId: string; teamId?: string | null },
+): Promise<void> {
+  const orConds: Array<Record<string, any>> = [{ studentUserId: request.studentUserId }];
+  if (request.teamId) orConds.push({ teamId: request.teamId });
+  await prisma.request.updateMany({
+    where: {
+      id: { not: request.id },
+      status: { in: ['pending', 'under review'] },
+      OR: orConds,
+    },
+    data: { status: 'rejected' },
+  });
+}

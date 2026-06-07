@@ -12,6 +12,17 @@ import {
 } from './auth';
 import { AuthedRequest, JwtPayload } from './types';
 import { prisma } from './prisma';
+import {
+  getRequestSeatCount,
+  computeSupervisorLoad,
+  recountSupervisor,
+  getProjectParticipantIds,
+  getProjectParticipants,
+  userCanAccessProject,
+  getCommittedStudentIds,
+  findExistingAssignment,
+  invalidateCompetingRequests,
+} from './domain';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -186,15 +197,6 @@ function mustUser(req: AuthedRequest): JwtPayload {
     throw createError(401, 'Unauthorized');
   }
   return req.user;
-}
-
-// сколько слотов занимает заявка: индивидуальная — 1, командная — число подтверждённых участников
-async function getRequestSeatCount(request: { applicationType?: string; teamId?: string | null }): Promise<number> {
-  if (request.applicationType !== 'team' || !request.teamId) return 1;
-  const accepted = await prisma.teamMember.count({
-    where: { teamId: request.teamId, status: 'accepted' },
-  });
-  return Math.max(1, accepted);
 }
 
 export function registerRoutes(app: any): void {
@@ -408,6 +410,13 @@ export function registerRoutes(app: any): void {
       include: { topics: true }
     });
 
+    // авторитетно пересчитываем загрузку из принятых заявок — лечим возможный дрейф счётчика
+    await Promise.all(
+      supervisors.map(async (sup) => {
+        sup.currentStudents = await recountSupervisor(sup.id);
+      }),
+    );
+
     const result = supervisors.filter((sup) => {
       if (department && sup.department !== department) return false;
       if (area && !sup.areas.includes(area)) return false;
@@ -431,6 +440,8 @@ export function registerRoutes(app: any): void {
     if (!supervisor) {
       throw createError(404, 'Supervisor not found.');
     }
+    // лечим возможный дрейф счётчика перед отдачей
+    supervisor.currentStudents = await recountSupervisor(supervisor.id);
     res.json(supervisor);
   }));
 
@@ -736,15 +747,17 @@ export function registerRoutes(app: any): void {
     // для командной заявки слот занимает каждый подтверждённый участник
     const seatCount = await getRequestSeatCount(request);
 
-    // принимаем студента/команду — увеличиваем счётчик и создаём проект
+    // принимаем студента/команду — проверяем вместимость и эксклюзивность, создаём проект
     if (parsed.data.status === 'accepted' && request.status !== 'accepted') {
-      if (supervisor.currentStudents + seatCount > supervisor.capacity) {
+      // #6 — нельзя принять студента/команду, уже назначенных другому супервайзеру
+      const conflict = await findExistingAssignment(request);
+      if (conflict) throw createError(409, conflict);
+
+      // вместимость считаем от АКТУАЛЬНОЙ загрузки (источник правды), а не от хранимого счётчика
+      const currentLoad = await computeSupervisorLoad(supervisor.id);
+      if (currentLoad + seatCount > supervisor.capacity) {
         throw createError(400, 'Supervisor has no remaining capacity for this application.');
       }
-      await prisma.supervisor.update({
-        where: { id: supervisor.id },
-        data: { currentStudents: { increment: seatCount } }
-      });
 
       // создаём проект если его ещё нет для этой заявки (один общий проект на команду)
       const existingProject = await prisma.project.findUnique({ where: { requestId: request.id } });
@@ -766,21 +779,18 @@ export function registerRoutes(app: any): void {
       }
     }
 
-    // если передумал после принятия - уменьшаем счётчик обратно (не ниже 0)
-    if (parsed.data.status !== 'accepted' && request.status === 'accepted') {
-      const freshSup = await prisma.supervisor.findUnique({ where: { id: supervisor.id } });
-      if (freshSup && freshSup.currentStudents > 0) {
-        await prisma.supervisor.update({
-          where: { id: supervisor.id },
-          data: { currentStudents: Math.max(0, freshSup.currentStudents - seatCount) }
-        });
-      }
-    }
-
     const updatedRequest = await prisma.request.update({
       where: { id: request.id },
       data: { status: parsed.data.status }
     });
+
+    // #6 — после принятия гасим конкурирующие заявки того же студента/команды
+    if (parsed.data.status === 'accepted') {
+      await invalidateCompetingRequests(request);
+    }
+
+    // пересчитываем загрузку этого супервайзера из источника правды (и для accept, и для отмены)
+    await recountSupervisor(supervisor.id);
 
     res.json(updatedRequest);
   }));
@@ -793,9 +803,13 @@ export function registerRoutes(app: any): void {
     const openToTeamOnly = String((req as any).query.openToTeam || '').toLowerCase() === 'true';
     const keyword = String((req as any).query.keyword || '').trim().toLowerCase();
 
+    // #3 — студенты, уже состоящие в команде или назначенные супервайзеру, не доступны для подбора
+    const committedIds = await getCommittedStudentIds();
+    const excludeIds = [...new Set([userPayload.sub, ...committedIds])];
+
     const where: Record<string, any> = {
       role: 'student',
-      id: { not: userPayload.sub }, // исключаем самого себя
+      id: { notIn: excludeIds }, // исключаем себя и уже занятых студентов
     };
     if (openToTeamOnly) where.openToTeam = true;
 
@@ -975,6 +989,12 @@ export function registerRoutes(app: any): void {
     const target = await prisma.user.findFirst({ where: { id: parsed.data.toUserId, role: 'student' } });
     if (!target) throw createError(404, 'Student not found.');
 
+    // #3 — нельзя приглашать студента, который уже состоит в команде или назначен супервайзеру
+    const committed = await getCommittedStudentIds();
+    if (committed.has(parsed.data.toUserId)) {
+      throw createError(409, 'This student is already part of a team or assigned to a supervisor.');
+    }
+
     // определяем команду: либо переданную (лидер), либо команду по умолчанию у приглашающего
     let teamId = parsed.data.teamId || null;
     if (teamId) {
@@ -1033,11 +1053,37 @@ export function registerRoutes(app: any): void {
 
     const newStatus = parsed.data.action === 'accept' ? 'accepted' : 'declined';
 
+    // #1 (edge) — если команда уже принята супервайзером, новый участник занимает слот.
+    // не даём вступить, если это превысит вместимость супервайзера.
+    if (newStatus === 'accepted') {
+      const acceptedReq = await prisma.request.findFirst({
+        where: { teamId: invitation.teamId, status: 'accepted' },
+        select: { supervisorId: true },
+      });
+      if (acceptedReq) {
+        const supervisor = await prisma.supervisor.findUnique({
+          where: { id: acceptedReq.supervisorId },
+          select: { capacity: true },
+        });
+        const load = await computeSupervisorLoad(acceptedReq.supervisorId);
+        if (supervisor && load + 1 > supervisor.capacity) {
+          throw createError(409, "Supervisor capacity is full — you cannot join this team's accepted project.");
+        }
+      }
+    }
+
     await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: newStatus } });
     await prisma.teamMember.updateMany({
       where: { teamId: invitation.teamId, userId: userPayload.sub },
       data: { status: newStatus },
     });
+
+    // #1 — если команда уже имеет проект, пересчитываем загрузку супервайзера (новый/ушедший участник)
+    const teamReq = await prisma.request.findFirst({
+      where: { teamId: invitation.teamId, status: 'accepted' },
+      select: { supervisorId: true },
+    });
+    if (teamReq) await recountSupervisor(teamReq.supervisorId);
 
     res.json({ ok: true, status: newStatus });
   }));
@@ -1065,8 +1111,29 @@ export function registerRoutes(app: any): void {
 
     let projects;
     if (userPayload.role === 'student') {
+      // #4 — проект виден лидеру И подтверждённым участникам команды.
+      // собираем команды, где пользователь — accepted-участник, и их принятые заявки
+      const memberships = await prisma.teamMember.findMany({
+        where: { userId: userPayload.sub, status: 'accepted' },
+        select: { teamId: true },
+      });
+      const teamIds = [...new Set(memberships.map((m) => m.teamId))];
+      let teamRequestIds: string[] = [];
+      if (teamIds.length) {
+        const teamReqs = await prisma.request.findMany({
+          where: { teamId: { in: teamIds }, status: 'accepted' },
+          select: { id: true },
+        });
+        teamRequestIds = teamReqs.map((r) => r.id);
+      }
+
       projects = await prisma.project.findMany({
-        where: { studentUserId: userPayload.sub },
+        where: {
+          OR: [
+            { studentUserId: userPayload.sub },
+            ...(teamRequestIds.length ? [{ requestId: { in: teamRequestIds } }] : []),
+          ],
+        },
         include: { files: true, supervisor: { select: { name: true, avatar: true } } },
         orderBy: { updatedAt: 'desc' },
       });
@@ -1096,11 +1163,14 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    // проверяем что юзер — участник проекта
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    // #2 — доступ у супервайзера и у всех подтверждённых участников команды
+    const canAccess = await userCanAccessProject(project, userPayload.sub);
+    if (!canAccess) throw createError(403, 'You are not a member of this project.');
 
-    res.json(project);
+    // #2 — отдаём полный список участников (лидер/студент + accepted-члены команды)
+    const participants = await getProjectParticipants(project);
+
+    res.json({ ...project, participants });
   }));
 
   // обновить название/описание проекта
@@ -1112,8 +1182,8 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    const canAccess = await userCanAccessProject(project, userPayload.sub);
+    if (!canAccess) throw createError(403, 'You are not a member of this project.');
 
     const { title, description } = req.body as any;
     const updated = await prisma.project.update({
@@ -1136,8 +1206,8 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    const canAccess = await userCanAccessProject(project, userPayload.sub);
+    if (!canAccess) throw createError(403, 'You are not a member of this project.');
 
     if (!(req as any).file) throw createError(400, 'No file uploaded.');
     const file = (req as any).file;
@@ -1171,8 +1241,8 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    const canAccess = await userCanAccessProject(project, userPayload.sub);
+    if (!canAccess) throw createError(403, 'You are not a member of this project.');
 
     const file = await prisma.projectFile.findUnique({ where: { id: (req as any).params.fileId } });
     if (!file || file.projectId !== project.id) throw createError(404, 'File not found.');
@@ -1194,8 +1264,8 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    const canAccess = await userCanAccessProject(project, userPayload.sub);
+    if (!canAccess) throw createError(403, 'You are not a member of this project.');
 
     const file = await prisma.projectFile.findUnique({ where: { id: (req as any).params.fileId } });
     if (!file || file.projectId !== project.id) throw createError(404, 'File not found.');
@@ -1221,9 +1291,9 @@ export function registerRoutes(app: any): void {
     });
     if (!project) throw createError(404, 'Project not found.');
 
-    // проверяем что юзер — участник проекта
-    const isMember = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
-    if (!isMember) throw createError(403, 'You are not a member of this project.');
+    // расформировать может только лидер/автор заявки или супервайзер — не рядовой участник
+    const canDisband = project.studentUserId === userPayload.sub || project.supervisor.userId === userPayload.sub;
+    if (!canDisband) throw createError(403, 'Only the team leader or supervisor can disband this project.');
 
     // удаляем физические файлы с диска
     for (const file of project.files) {
@@ -1244,17 +1314,11 @@ export function registerRoutes(app: any): void {
       data: { status: 'rejected' },
     }).catch(() => { });
 
-    // уменьшаем счётчик студентов у преподавателя (не ниже 0)
-    const freshSupervisor = await prisma.supervisor.findUnique({ where: { id: project.supervisor.id } });
-    if (freshSupervisor && freshSupervisor.currentStudents > 0) {
-      await prisma.supervisor.update({
-        where: { id: project.supervisor.id },
-        data: { currentStudents: Math.max(0, freshSupervisor.currentStudents - 1) },
-      }).catch(() => { });
-    }
-
     // удаляем проект (каскадно удалятся ProjectFile записи из БД)
     await prisma.project.delete({ where: { id: project.id } });
+
+    // пересчитываем загрузку супервайзера из источника правды (заявка теперь rejected)
+    await recountSupervisor(project.supervisor.id);
 
     res.json({ ok: true });
   }));
