@@ -654,6 +654,59 @@ export default function SupervisorDashboardPage() {
                         <StatusBadge status={request.status} />
                       </div>
 
+                      {/* Application Type + team composition / open-to-team */}
+                      {(() => {
+                        const isTeam = request.applicationType === 'team'
+                        const members = request.team?.members || []
+                        return (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: isTeam ? 8 : 0 }}>
+                              <span
+                                className={`badge ${isTeam ? 'badge-accent' : 'badge-neutral'}`}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.6875rem' }}
+                              >
+                                <Users size={11} strokeWidth={2.2} />
+                                {isTeam ? 'Team Application' : 'Individual Application'}
+                              </span>
+                              {!isTeam && (
+                                <span className="text-caption" style={{ fontSize: '0.72rem' }}>
+                                  Open to Team Formation:{' '}
+                                  <strong style={{ color: request.openToTeamFormation ? 'var(--success)' : 'var(--text-secondary)' }}>
+                                    {request.openToTeamFormation ? 'Yes' : 'No'}
+                                  </strong>
+                                </span>
+                              )}
+                            </div>
+
+                            {isTeam && (
+                              <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', borderLeft: '3px solid var(--accent)' }}>
+                                {request.team?.name && (
+                                  <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: members.length ? 6 : 0 }}>
+                                    {request.team.name}
+                                  </p>
+                                )}
+                                <div style={{ display: 'grid', gap: 4 }}>
+                                  {members.map((m, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem' }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span>
+                                      <span className="text-caption" style={{ fontSize: '0.72rem' }}>
+                                        {m.department}{m.group ? ` · ${m.group}` : ''}
+                                      </span>
+                                      {m.role === 'leader' && (
+                                        <span className="badge badge-neutral" style={{ fontSize: '0.625rem' }}>Leader</span>
+                                      )}
+                                      {m.status === 'pending' && (
+                                        <span className="text-caption" style={{ fontSize: '0.66rem', fontStyle: 'italic' }}>(invited)</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+
                       {/* Research Interests */}
                       {request.researchInterests && (
                         <div style={{ marginBottom: 10 }}>

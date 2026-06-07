@@ -24,10 +24,20 @@ model User {
   refreshTokenHash String?
   createdAt        DateTime @default(now())
 
+  // team formation (use case 2 — "open to joining a team")
+  openToTeam        Boolean  @default(false)
+  preferredTeamSize Int?
+  skills            String[] @default([]) // ["Frontend","AI/ML",...]
+
   supervisorProfile Supervisor?
   studentRequests   Request[]      @relation("StudentRequests")
   projects          Project[]      @relation("StudentProjects")
   uploadedFiles     ProjectFile[]  @relation("UploadedFiles")
+
+  ledTeams            Team[]           @relation("TeamLeader")
+  teamMemberships     TeamMember[]
+  sentInvitations     TeamInvitation[] @relation("InviteFrom")
+  receivedInvitations TeamInvitation[] @relation("InviteTo")
 }
 
 model Supervisor {
@@ -74,9 +84,59 @@ model Request {
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
+  // team support — defaults keep existing individual requests valid
+  applicationType     String  @default("individual") // "individual" | "team"
+  openToTeamFormation Boolean @default(false)         // for individual requests
+  teamId              String?
+  team                Team?   @relation(fields: [teamId], references: [id])
+
   student       User       @relation("StudentRequests", fields: [studentUserId], references: [id], onDelete: Cascade)
   supervisor    Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)
   project       Project?
+}
+
+// команда студентов (use case 1 — существующая команда)
+model Team {
+  id           String   @id @default(uuid())
+  name         String
+  leaderUserId String
+  createdAt    DateTime @default(now())
+
+  leader      User             @relation("TeamLeader", fields: [leaderUserId], references: [id], onDelete: Cascade)
+  members     TeamMember[]
+  invitations TeamInvitation[]
+  requests    Request[]
+}
+
+// участник команды — отдельная строка на каждого (лидер тоже, со статусом accepted)
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  userId   String
+  role     String   @default("member")  // "leader" | "member"
+  status   String   @default("pending") // "pending" | "accepted" | "declined"
+  joinedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+// приглашение в команду (use case 1 — приглашение участников, use case 2 — discovery)
+model TeamInvitation {
+  id         String   @id @default(uuid())
+  teamId     String
+  fromUserId String
+  toUserId   String
+  status     String   @default("pending") // "pending" | "accepted" | "declined"
+  createdAt  DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  from User @relation("InviteFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  to   User @relation("InviteTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, toUserId])
 }
 
 // проект создаётся автоматически когда супервайзер принимает заявку

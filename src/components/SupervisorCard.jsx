@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Users, Send, ChevronDown, ChevronUp, CheckCircle, FileText, Upload, X, Sparkles } from 'lucide-react'
+import { MapPin, Users, User, Send, ChevronDown, ChevronUp, CheckCircle, FileText, Upload, X, Sparkles, Search, Plus, ArrowRight, ArrowLeft } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
+import { useApp } from '../context/AppContext'
 import { getInitials, slotsLeft } from '../lib/utils'
 
 function ApplicationScorePreview({ researchInterests, message, resumeFile }) {
@@ -86,12 +87,57 @@ function ApplicationScorePreview({ researchInterests, message, resumeFile }) {
 
 function RequestFormModal({ supervisor, onClose, onSubmit }) {
   const toast = useToast()
+  const { fetchStudents, createTeam } = useApp()
+  const [step, setStep] = useState(1)
   const [researchInterests, setResearchInterests] = useState('')
   const [message, setMessage] = useState('')
   const [resumeFile, setResumeFile] = useState(null)
   const [resumeError, setResumeError] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [errors, setErrors] = useState({})
+
+  // ===== Шаг 1: тип заявки =====
+  const [applicationType, setApplicationType] = useState('individual') // 'individual' | 'team'
+  const [openToTeamFormation, setOpenToTeamFormation] = useState(false)
+  const [teamName, setTeamName] = useState('')
+  const [selectedMembers, setSelectedMembers] = useState([]) // [{ id, fullName, department, groupName }]
+  const [memberQuery, setMemberQuery] = useState('')
+  const [studentResults, setStudentResults] = useState([])
+  const [step1Errors, setStep1Errors] = useState({})
+
+  // подгружаем студентов для выбора участников (только в командном режиме)
+  useEffect(() => {
+    if (applicationType !== 'team') return
+    let active = true
+    const t = setTimeout(async () => {
+      const list = await fetchStudents({ keyword: memberQuery.trim() })
+      if (active) setStudentResults(list)
+    }, 250)
+    return () => { active = false; clearTimeout(t) }
+  }, [applicationType, memberQuery, fetchStudents])
+
+  const toggleMember = (student) => {
+    setSelectedMembers((prev) =>
+      prev.some((m) => m.id === student.id)
+        ? prev.filter((m) => m.id !== student.id)
+        : [...prev, student]
+    )
+    if (step1Errors.members) setStep1Errors((prev) => ({ ...prev, members: '' }))
+  }
+
+  const validateStep1 = () => {
+    if (applicationType !== 'team') return true
+    const e = {}
+    if (!teamName.trim()) e.teamName = 'Team name is required.'
+    if (selectedMembers.length === 0) e.members = 'Select at least one team member.'
+    setStep1Errors(e)
+    return Object.keys(e).length === 0
+  }
+
+  const goToStep2 = () => {
+    if (!validateStep1()) return
+    setStep(2)
+  }
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
@@ -131,6 +177,10 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
+    if (applicationType === 'team' && !validateStep1()) {
+      setStep(1)
+      return
+    }
 
     setIsSending(true)
 
@@ -142,6 +192,24 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
       formData.append('resume', resumeFile)
     }
 
+    formData.append('applicationType', applicationType)
+
+    if (applicationType === 'team') {
+      // сначала создаём команду (участники получат приглашения), затем прикрепляем teamId к заявке
+      const teamRes = await createTeam({
+        name: teamName.trim(),
+        memberUserIds: selectedMembers.map((m) => m.id),
+      })
+      if (!teamRes.ok || !teamRes.data?.id) {
+        toast.error(teamRes.error || 'Failed to create the team.')
+        setIsSending(false)
+        return
+      }
+      formData.append('teamId', teamRes.data.id)
+    } else {
+      formData.append('openToTeamFormation', openToTeamFormation ? 'true' : 'false')
+    }
+
     const result = await onSubmit(formData)
 
     if (!result.ok) {
@@ -150,7 +218,11 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
       return
     }
 
-    toast.success(`Request sent to ${supervisor.name}!`)
+    toast.success(
+      applicationType === 'team'
+        ? `Team application sent to ${supervisor.name}!`
+        : `Request sent to ${supervisor.name}!`
+    )
     onClose()
   }
 
@@ -261,6 +333,193 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 22, padding: 'clamp(20px, 4vw, 32px)' }}>
+            {/* Step indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {[1, 2].map((s) => (
+                <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 'var(--radius-full)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
+                    background: step >= s ? 'var(--accent)' : 'var(--bg-secondary)',
+                    color: step >= s ? '#fff' : 'var(--text-tertiary)',
+                  }}>{s}</div>
+                  <span className="text-caption" style={{ fontSize: '0.75rem', fontWeight: step === s ? 700 : 500, color: step === s ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+                    {s === 1 ? 'Application Type' : 'Details'}
+                  </span>
+                  {s === 1 && <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />}
+                </div>
+              ))}
+            </div>
+
+            {/* ===== STEP 1: Application Type ===== */}
+            {step === 1 && (
+              <>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <label className="label">Application Type</label>
+                  {[
+                    { value: 'individual', icon: User, title: 'Individual Application', desc: 'Apply on your own.' },
+                    { value: 'team', icon: Users, title: 'Team Application', desc: 'Apply on behalf of a team.' },
+                  ].map((opt) => {
+                    const active = applicationType === opt.value
+                    const Icon = opt.icon
+                    return (
+                      <label
+                        key={opt.value}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+                          padding: '14px 16px', borderRadius: 'var(--radius-md)',
+                          border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                          background: active ? 'color-mix(in srgb, var(--accent) 7%, transparent)' : 'var(--surface)',
+                          transition: 'border-color var(--transition-fast), background var(--transition-fast)',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="applicationType"
+                          value={opt.value}
+                          checked={active}
+                          onChange={() => setApplicationType(opt.value)}
+                          style={{ accentColor: 'var(--accent)' }}
+                        />
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 'var(--radius-sm)', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: active ? 'var(--accent)' : 'var(--bg-secondary)',
+                        }}>
+                          <Icon size={18} style={{ color: active ? '#fff' : 'var(--text-tertiary)' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{opt.title}</div>
+                          <div className="text-caption" style={{ fontSize: '0.75rem' }}>{opt.desc}</div>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                {/* Individual → open to joining a team */}
+                {applicationType === 'individual' && (
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={openToTeamFormation}
+                      onChange={(e) => setOpenToTeamFormation(e.target.checked)}
+                      style={{ accentColor: 'var(--accent)', marginTop: 2 }}
+                    />
+                    <div>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>I am open to joining a team</div>
+                      <div className="text-caption" style={{ fontSize: '0.75rem' }}>Other students will be able to discover you and send team invitations.</div>
+                    </div>
+                  </label>
+                )}
+
+                {/* Team → name + member picker */}
+                {applicationType === 'team' && (
+                  <>
+                    <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'color-mix(in srgb, var(--accent) 8%, transparent)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      This application is submitted on behalf of the entire team. Selected members will receive an invitation to join.
+                    </div>
+
+                    <div>
+                      <label className="label" htmlFor="teamName">
+                        Team Name <span style={{ color: 'var(--danger)' }}>*</span>
+                      </label>
+                      <input
+                        className="input"
+                        id="teamName"
+                        value={teamName}
+                        style={step1Errors.teamName ? { borderColor: 'var(--danger)' } : undefined}
+                        onChange={(e) => {
+                          setTeamName(e.target.value)
+                          if (step1Errors.teamName) setStep1Errors((prev) => ({ ...prev, teamName: '' }))
+                        }}
+                        placeholder="e.g. Neural Navigators"
+                      />
+                      {step1Errors.teamName && (
+                        <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4, fontWeight: 500 }}>{step1Errors.teamName}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="label">
+                        Team Members <span style={{ color: 'var(--danger)' }}>*</span>
+                      </label>
+
+                      {/* selected chips */}
+                      {selectedMembers.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                          {selectedMembers.map((m) => (
+                            <span key={m.id} className="badge badge-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.75rem' }}>
+                              {m.fullName}
+                              <X size={12} style={{ cursor: 'pointer' }} onClick={() => toggleMember(m)} />
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* search */}
+                      <div style={{ position: 'relative', marginBottom: 8 }}>
+                        <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                        <input
+                          className="input"
+                          value={memberQuery}
+                          onChange={(e) => setMemberQuery(e.target.value)}
+                          placeholder="Search registered students by name or department..."
+                          style={{ paddingLeft: 34 }}
+                        />
+                      </div>
+
+                      {/* results */}
+                      <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+                        {studentResults.length === 0 ? (
+                          <div className="text-caption" style={{ padding: '14px 16px', fontSize: '0.8125rem' }}>No students found.</div>
+                        ) : (
+                          studentResults.map((s) => {
+                            const picked = selectedMembers.some((m) => m.id === s.id)
+                            return (
+                              <button
+                                type="button"
+                                key={s.id}
+                                onClick={() => toggleMember(s)}
+                                style={{
+                                  width: '100%', display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+                                  padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
+                                  background: picked ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <div className="avatar" style={{ width: 32, height: 32, fontSize: '0.75rem', flexShrink: 0 }}>
+                                  {getInitials(s.fullName)}
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>{s.fullName}</div>
+                                  <div className="text-caption" style={{ fontSize: '0.72rem' }}>
+                                    {s.department}{s.groupName ? ` · ${s.groupName}` : ''}
+                                  </div>
+                                </div>
+                                {picked ? (
+                                  <CheckCircle size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                                ) : (
+                                  <Plus size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                                )}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+                      {step1Errors.members && (
+                        <p style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: 4, fontWeight: 500 }}>{step1Errors.members}</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* ===== STEP 2: Details ===== */}
+            {step === 2 && (
+            <>
             {/* Research Interests */}
             <div>
               <label className="label" htmlFor="researchInterests">
@@ -427,25 +686,42 @@ function RequestFormModal({ supervisor, onClose, onSubmit }) {
               message={message}
               resumeFile={resumeFile}
             />
+            </>
+            )}
 
-            {/* Submit */}
+            {/* Footer */}
             <div
               style={{
                 display: 'flex',
                 gap: 10,
-                justifyContent: 'flex-end',
+                justifyContent: 'space-between',
                 paddingTop: 18,
                 marginTop: 2,
                 borderTop: '1px solid var(--border)',
               }}
             >
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={isSending}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary btn-sm" disabled={isSending}>
-                <Send size={14} strokeWidth={2} />
-                {isSending ? 'Sending...' : 'Submit Request'}
-              </button>
+              {step === 1 ? (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={isSending}>
+                  Cancel
+                </button>
+              ) : (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setStep(1)} disabled={isSending}>
+                  <ArrowLeft size={14} strokeWidth={2} />
+                  Back
+                </button>
+              )}
+
+              {step === 1 ? (
+                <button type="button" className="btn btn-primary btn-sm" onClick={goToStep2}>
+                  Next
+                  <ArrowRight size={14} strokeWidth={2} />
+                </button>
+              ) : (
+                <button type="submit" className="btn btn-primary btn-sm" disabled={isSending}>
+                  <Send size={14} strokeWidth={2} />
+                  {isSending ? 'Sending...' : applicationType === 'team' ? 'Submit Team Application' : 'Submit Request'}
+                </button>
+              )}
             </div>
           </form>
         </motion.div>

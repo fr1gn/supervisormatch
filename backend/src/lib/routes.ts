@@ -44,6 +44,9 @@ const updateUserSchema = z.object({
   title: z.string().trim().optional(),
   areas: z.array(z.string().trim().min(1)).optional(),
   avatar: z.string().trim().optional(),
+  openToTeam: z.boolean().optional(),
+  preferredTeamSize: z.number().int().min(2).max(10).nullable().optional(),
+  skills: z.array(z.string().trim().min(1)).optional(),
 });
 
 const updateSupervisorSchema = z.object({
@@ -71,6 +74,34 @@ const createRequestSchema = z.object({
     .trim()
     .optional()
     .transform((v) => v || ''),
+  // приходит из FormData строками, поэтому коэрсим вручную
+  applicationType: z
+    .enum(['individual', 'team'])
+    .optional()
+    .transform((v) => v || 'individual'),
+  teamId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || null),
+  openToTeamFormation: z
+    .union([z.string(), z.boolean()])
+    .optional()
+    .transform((v) => v === true || v === 'true'),
+});
+
+const createTeamSchema = z.object({
+  name: z.string().trim().min(1, 'Team name is required.'),
+  memberUserIds: z.array(z.string().trim().min(1)).optional().default([]),
+});
+
+const createInvitationSchema = z.object({
+  toUserId: z.string().trim().min(1),
+  teamId: z.string().trim().optional(),
+});
+
+const respondInvitationSchema = z.object({
+  action: z.enum(['accept', 'decline']),
 });
 
 // multer для загрузки резюме — только PDF, максимум 5 МБ
@@ -155,6 +186,15 @@ function mustUser(req: AuthedRequest): JwtPayload {
     throw createError(401, 'Unauthorized');
   }
   return req.user;
+}
+
+// сколько слотов занимает заявка: индивидуальная — 1, командная — число подтверждённых участников
+async function getRequestSeatCount(request: { applicationType?: string; teamId?: string | null }): Promise<number> {
+  if (request.applicationType !== 'team' || !request.teamId) return 1;
+  const accepted = await prisma.teamMember.count({
+    where: { teamId: request.teamId, status: 'accepted' },
+  });
+  return Math.max(1, accepted);
 }
 
 export function registerRoutes(app: any): void {
@@ -324,7 +364,7 @@ export function registerRoutes(app: any): void {
 
     // собираем только заполненные поля (prisma не любит undefined)
     const userData: Record<string, any> = {};
-    for (const key of ['fullName', 'department', 'groupName', 'phone', 'studyLevel', 'interests', 'bio', 'avatar']) {
+    for (const key of ['fullName', 'department', 'groupName', 'phone', 'studyLevel', 'interests', 'bio', 'avatar', 'openToTeam', 'preferredTeamSize', 'skills']) {
       if (updates[key] !== undefined) {
         userData[key] = updates[key];
       }
@@ -532,6 +572,16 @@ export function registerRoutes(app: any): void {
 
     if (duplicate) throw createError(400, 'You already have an active request for this supervisor.');
 
+    // для командной заявки проверяем что team существует и заявитель — её лидер
+    let teamId: string | null = null;
+    if (parsed.data.applicationType === 'team') {
+      if (!parsed.data.teamId) throw createError(400, 'A team is required for a team application.');
+      const team = await prisma.team.findUnique({ where: { id: parsed.data.teamId } });
+      if (!team) throw createError(404, 'Team not found.');
+      if (team.leaderUserId !== student.id) throw createError(403, 'Only the team leader can apply on behalf of the team.');
+      teamId = team.id;
+    }
+
     const resumeFile = (req as any).file;
     const resumePath = resumeFile ? resumeFile.path : null;
 
@@ -544,7 +594,10 @@ export function registerRoutes(app: any): void {
         researchInterests: parsed.data.researchInterests,
         message: parsed.data.message,
         resumePath,
-        status: 'pending'
+        status: 'pending',
+        applicationType: parsed.data.applicationType,
+        teamId,
+        openToTeamFormation: parsed.data.applicationType === 'individual' ? parsed.data.openToTeamFormation : false,
       }
     });
 
@@ -614,6 +667,15 @@ export function registerRoutes(app: any): void {
             bio: true,
           },
         },
+        team: {
+          include: {
+            members: {
+              include: {
+                user: { select: { fullName: true, department: true, groupName: true } },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -628,6 +690,22 @@ export function registerRoutes(app: any): void {
       studentInterests: r.student?.interests || null,
       studentBio: r.student?.bio || null,
       student: undefined,
+      // компактный объект команды для дашборда супервайзера
+      team: r.team
+        ? {
+            id: r.team.id,
+            name: r.team.name,
+            members: r.team.members
+              .filter(m => m.status !== 'declined')
+              .map(m => ({
+                name: m.user?.fullName || '',
+                department: m.user?.department || '',
+                group: m.user?.groupName || '',
+                role: m.role,
+                status: m.status,
+              })),
+          }
+        : null,
     }));
 
     res.json(result);
@@ -655,22 +733,30 @@ export function registerRoutes(app: any): void {
 
     if (request.supervisorId !== supervisor.id) throw createError(403, 'You can only update requests assigned to you.');
 
-    // принимаем студента — увеличиваем счётчик и создаём проект
+    // для командной заявки слот занимает каждый подтверждённый участник
+    const seatCount = await getRequestSeatCount(request);
+
+    // принимаем студента/команду — увеличиваем счётчик и создаём проект
     if (parsed.data.status === 'accepted' && request.status !== 'accepted') {
-      if (supervisor.currentStudents >= supervisor.capacity) {
-        throw createError(400, 'Supervisor has no remaining capacity.');
+      if (supervisor.currentStudents + seatCount > supervisor.capacity) {
+        throw createError(400, 'Supervisor has no remaining capacity for this application.');
       }
       await prisma.supervisor.update({
         where: { id: supervisor.id },
-        data: { currentStudents: { increment: 1 } }
+        data: { currentStudents: { increment: seatCount } }
       });
 
-      // создаём проект если его ещё нет для этой заявки
+      // создаём проект если его ещё нет для этой заявки (один общий проект на команду)
       const existingProject = await prisma.project.findUnique({ where: { requestId: request.id } });
       if (!existingProject) {
+        let title = `Project: ${request.studentName}`;
+        if (request.applicationType === 'team' && request.teamId) {
+          const team = await prisma.team.findUnique({ where: { id: request.teamId } });
+          if (team) title = `Team: ${team.name}`;
+        }
         await prisma.project.create({
           data: {
-            title: `Project: ${request.studentName}`,
+            title,
             description: '',
             requestId: request.id,
             studentUserId: request.studentUserId,
@@ -686,7 +772,7 @@ export function registerRoutes(app: any): void {
       if (freshSup && freshSup.currentStudents > 0) {
         await prisma.supervisor.update({
           where: { id: supervisor.id },
-          data: { currentStudents: Math.max(0, freshSup.currentStudents - 1) }
+          data: { currentStudents: Math.max(0, freshSup.currentStudents - seatCount) }
         });
       }
     }
@@ -697,6 +783,263 @@ export function registerRoutes(app: any): void {
     });
 
     res.json(updatedRequest);
+  }));
+
+  // ==================== СТУДЕНТЫ / КОМАНДЫ / ПРИГЛАШЕНИЯ ====================
+
+  // справочник студентов: для выбора участников команды и для discovery ("ищу команду")
+  app.get('/students', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const openToTeamOnly = String((req as any).query.openToTeam || '').toLowerCase() === 'true';
+    const keyword = String((req as any).query.keyword || '').trim().toLowerCase();
+
+    const where: Record<string, any> = {
+      role: 'student',
+      id: { not: userPayload.sub }, // исключаем самого себя
+    };
+    if (openToTeamOnly) where.openToTeam = true;
+
+    let students = await prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        department: true,
+        groupName: true,
+        avatar: true,
+        interests: true,
+        skills: true,
+        preferredTeamSize: true,
+        openToTeam: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+
+    if (keyword) {
+      students = students.filter(s =>
+        s.fullName.toLowerCase().includes(keyword) ||
+        (s.department || '').toLowerCase().includes(keyword)
+      );
+    }
+
+    res.json(students);
+  }));
+
+  // загружаем команду с участниками в компактном виде
+  async function loadTeam(teamId: string) {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        members: {
+          include: { user: { select: { id: true, fullName: true, department: true, groupName: true, avatar: true } } },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+    });
+    if (!team) return null;
+    return {
+      id: team.id,
+      name: team.name,
+      leaderUserId: team.leaderUserId,
+      createdAt: team.createdAt,
+      members: team.members.map(m => ({
+        id: m.id,
+        userId: m.userId,
+        name: m.user?.fullName || '',
+        department: m.user?.department || '',
+        group: m.user?.groupName || '',
+        avatar: m.user?.avatar || null,
+        role: m.role,
+        status: m.status,
+      })),
+    };
+  }
+
+  // создаём команду: лидер + приглашённые участники (use case 1)
+  app.post('/teams', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'student') throw createError(403, 'Only students can create teams.');
+
+    const parsed = createTeamSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, parsed.error.issues?.[0]?.message || 'Invalid team payload');
+
+    // отфильтровываем самого лидера из списка участников и дубли
+    const memberIds = [...new Set(parsed.data.memberUserIds.filter(id => id !== userPayload.sub))];
+
+    // проверяем что все указанные пользователи — реальные студенты
+    if (memberIds.length > 0) {
+      const found = await prisma.user.count({ where: { id: { in: memberIds }, role: 'student' } });
+      if (found !== memberIds.length) throw createError(400, 'One or more selected members are invalid.');
+    }
+
+    const team = await prisma.team.create({
+      data: {
+        name: parsed.data.name,
+        leaderUserId: userPayload.sub,
+        members: {
+          create: [
+            { userId: userPayload.sub, role: 'leader', status: 'accepted' },
+            ...memberIds.map(id => ({ userId: id, role: 'member', status: 'pending' })),
+          ],
+        },
+        invitations: {
+          create: memberIds.map(id => ({ fromUserId: userPayload.sub, toUserId: id, status: 'pending' })),
+        },
+      },
+    });
+
+    const full = await loadTeam(team.id);
+    res.json(full);
+  }));
+
+  // команды, в которых пользователь состоит или которыми руководит
+  app.get('/teams/mine', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const memberships = await prisma.teamMember.findMany({
+      where: { userId: userPayload.sub, status: { not: 'declined' } },
+      select: { teamId: true },
+    });
+    const teamIds = [...new Set(memberships.map(m => m.teamId))];
+    const teams = await Promise.all(teamIds.map(id => loadTeam(id)));
+    res.json(teams.filter(Boolean));
+  }));
+
+  // одна команда (доступ — участникам или назначенному супервайзеру)
+  app.get('/teams/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const teamId = (req as any).params.id;
+    const team = await loadTeam(teamId);
+    if (!team) throw createError(404, 'Team not found.');
+
+    const isMember = team.members.some(m => m.userId === userPayload.sub);
+    let isSupervisorOfTeam = false;
+    if (userPayload.role === 'supervisor') {
+      const sup = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+      if (sup) {
+        const teamRequest = await prisma.request.findFirst({ where: { teamId, supervisorId: sup.id } });
+        isSupervisorOfTeam = !!teamRequest;
+      }
+    }
+    if (!isMember && !isSupervisorOfTeam) throw createError(403, 'Access denied.');
+
+    res.json(team);
+  }));
+
+  // приглашения, полученные текущим пользователем
+  app.get('/invitations', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const invitations = await prisma.teamInvitation.findMany({
+      where: { toUserId: userPayload.sub, status: 'pending' },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        from: { select: { fullName: true, department: true } },
+        team: {
+          include: {
+            members: {
+              where: { status: { not: 'declined' } },
+              include: { user: { select: { fullName: true, department: true, groupName: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    const result = invitations.map(inv => ({
+      id: inv.id,
+      teamId: inv.teamId,
+      teamName: inv.team?.name || '',
+      fromName: inv.from?.fullName || '',
+      fromDepartment: inv.from?.department || '',
+      createdAt: inv.createdAt,
+      members: (inv.team?.members || []).map(m => ({
+        name: m.user?.fullName || '',
+        department: m.user?.department || '',
+        group: m.user?.groupName || '',
+        role: m.role,
+        status: m.status,
+      })),
+    }));
+    res.json(result);
+  }));
+
+  // отправить приглашение в команду (use case 2 "Send Team Invitation")
+  app.post('/invitations', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'student') throw createError(403, 'Only students can send team invitations.');
+
+    const parsed = createInvitationSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, parsed.error.issues?.[0]?.message || 'Invalid invitation payload');
+
+    if (parsed.data.toUserId === userPayload.sub) throw createError(400, 'You cannot invite yourself.');
+
+    const target = await prisma.user.findFirst({ where: { id: parsed.data.toUserId, role: 'student' } });
+    if (!target) throw createError(404, 'Student not found.');
+
+    // определяем команду: либо переданную (лидер), либо команду по умолчанию у приглашающего
+    let teamId = parsed.data.teamId || null;
+    if (teamId) {
+      const team = await prisma.team.findUnique({ where: { id: teamId } });
+      if (!team) throw createError(404, 'Team not found.');
+      if (team.leaderUserId !== userPayload.sub) throw createError(403, 'Only the team leader can invite to this team.');
+    } else {
+      // ищем команду, которую пользователь возглавляет; если нет — создаём «My Team»
+      let team = await prisma.team.findFirst({ where: { leaderUserId: userPayload.sub } });
+      if (!team) {
+        const me = await prisma.user.findUnique({ where: { id: userPayload.sub } });
+        team = await prisma.team.create({
+          data: {
+            name: me ? `${me.fullName}'s Team` : 'My Team',
+            leaderUserId: userPayload.sub,
+            members: { create: [{ userId: userPayload.sub, role: 'leader', status: 'accepted' }] },
+          },
+        });
+      }
+      teamId = team.id;
+    }
+
+    // защита от дублей (@@unique([teamId, toUserId]) тоже подстрахует)
+    const existing = await prisma.teamInvitation.findUnique({
+      where: { teamId_toUserId: { teamId, toUserId: parsed.data.toUserId } },
+    });
+    if (existing) {
+      if (existing.status === 'pending') throw createError(400, 'This student already has a pending invitation to your team.');
+      // повторно приглашаем — реактивируем
+      await prisma.teamInvitation.update({ where: { id: existing.id }, data: { status: 'pending', fromUserId: userPayload.sub } });
+    } else {
+      await prisma.teamInvitation.create({
+        data: { teamId, fromUserId: userPayload.sub, toUserId: parsed.data.toUserId, status: 'pending' },
+      });
+    }
+
+    // заводим (или реактивируем) запись участника со статусом pending
+    await prisma.teamMember.upsert({
+      where: { teamId_userId: { teamId, userId: parsed.data.toUserId } },
+      create: { teamId, userId: parsed.data.toUserId, role: 'member', status: 'pending' },
+      update: { status: 'pending' },
+    });
+
+    res.json({ ok: true, teamId });
+  }));
+
+  // принять / отклонить приглашение
+  app.patch('/invitations/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const parsed = respondInvitationSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, 'Invalid response payload');
+
+    const invitation = await prisma.teamInvitation.findUnique({ where: { id: (req as any).params.id } });
+    if (!invitation) throw createError(404, 'Invitation not found.');
+    if (invitation.toUserId !== userPayload.sub) throw createError(403, 'This invitation is not addressed to you.');
+
+    const newStatus = parsed.data.action === 'accept' ? 'accepted' : 'declined';
+
+    await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { status: newStatus } });
+    await prisma.teamMember.updateMany({
+      where: { teamId: invitation.teamId, userId: userPayload.sub },
+      data: { status: newStatus },
+    });
+
+    res.json({ ok: true, status: newStatus });
   }));
 
   // ==================== ПРОЕКТЫ ====================

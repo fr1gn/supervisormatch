@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   FolderOpen,
+  Users,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
@@ -122,6 +123,7 @@ export default function AppLayout() {
       ]
     : [
         { to: '/app/search', icon: Search, label: 'Find Supervisors' },
+        { to: '/app/teammates', icon: Users, label: 'Find Teammates' },
         { to: '/app/requests', icon: FileText, label: 'My Requests' },
         { to: '/app/projects', icon: FolderOpen, label: 'Projects' },
         { to: '/app/about', icon: Info, label: 'About' },

@@ -113,6 +113,43 @@ export function AppProvider({ children }) {
     return requests;
   }, [requests])
 
+  // ===== Команды / приглашения / discovery =====
+
+  // список студентов (для выбора участников и для страницы "Find Teammates")
+  const fetchStudents = useCallback(async ({ openToTeam, keyword } = {}) => {
+    const params = new URLSearchParams()
+    if (openToTeam) params.set('openToTeam', 'true')
+    if (keyword) params.set('keyword', keyword)
+    const qs = params.toString()
+    const res = await api.get(`/students${qs ? '?' + qs : ''}`)
+    return res.ok ? res.data : []
+  }, [])
+
+  // создаём команду с выбранными участниками (они получают приглашения)
+  const createTeam = useCallback(async ({ name, memberUserIds }) => {
+    return api.post('/teams', { name, memberUserIds })
+  }, [])
+
+  const fetchMyTeams = useCallback(async () => {
+    const res = await api.get('/teams/mine')
+    return res.ok ? res.data : []
+  }, [])
+
+  const fetchInvitations = useCallback(async () => {
+    const res = await api.get('/invitations')
+    return res.ok ? res.data : []
+  }, [])
+
+  // отправить приглашение в команду (discovery)
+  const sendInvitation = useCallback(async ({ toUserId, teamId }) => {
+    return api.post('/invitations', { toUserId, teamId })
+  }, [])
+
+  // принять / отклонить приглашение
+  const respondInvitation = useCallback(async (invitationId, action) => {
+    return api.patch(`/invitations/${invitationId}`, { action })
+  }, [])
+
   const updateRequestStatus = async (requestId, status) => {
     const res = await api.patch(`/requests/${requestId}/status`, { status });
     if (res.ok) {
@@ -182,6 +219,12 @@ export function AppProvider({ children }) {
     updateSupervisorProfile,
     addSupervisorTopic,
     removeSupervisorTopic,
+    fetchStudents,
+    createTeam,
+    fetchMyTeams,
+    fetchInvitations,
+    sendInvitation,
+    respondInvitation,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

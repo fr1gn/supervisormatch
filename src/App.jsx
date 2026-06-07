@@ -12,6 +12,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const RequestsPage = lazy(() => import('./pages/RequestsPage'))
+const TeammatesPage = lazy(() => import('./pages/TeammatesPage'))
 const SupervisorDashboardPage = lazy(() => import('./pages/SupervisorDashboardPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -85,6 +86,14 @@ function AppRoutes() {
         >
           <Route path="search" element={<SearchPage />} />
           <Route path="requests" element={<RequestsPage />} />
+          <Route
+            path="teammates"
+            element={
+              <RequireRole role="student">
+                <TeammatesPage />
+              </RequireRole>
+            }
+          />
           <Route
             path="supervisor"
             element={

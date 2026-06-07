@@ -23,8 +23,22 @@ function StudentProfile() {
     interests: student?.interests || '',
     bio: student?.bio || '',
     avatar: student?.avatar || '',
+    openToTeam: student?.openToTeam || false,
+    preferredTeamSize: student?.preferredTeamSize || '',
+    skills: student?.skills || [],
   })
   const [saving, setSaving] = useState(false)
+
+  const SKILL_OPTIONS = ['Frontend Development', 'Backend Development', 'AI / ML', 'UI/UX', 'Research', 'Data Analysis']
+
+  const toggleSkill = (skill) => {
+    setForm((prev) => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter((s) => s !== skill)
+        : [...prev.skills, skill],
+    }))
+  }
 
   const [uploading, setUploading] = useState(false)
 
@@ -59,7 +73,15 @@ function StudentProfile() {
     event.preventDefault()
     setSaving(true)
 
-    const result = await updateStudentProfile(form)
+    const payload = {
+      ...form,
+      preferredTeamSize:
+        form.preferredTeamSize === '' || form.preferredTeamSize == null
+          ? null
+          : Number(form.preferredTeamSize),
+    }
+
+    const result = await updateStudentProfile(payload)
     if (!result.ok) {
       toast.error(result.error || 'Failed to save profile.')
       setSaving(false)
@@ -193,6 +215,62 @@ function StudentProfile() {
               onChange={onChange}
               placeholder="Write a short introduction about your goals and interests"
             />
+          </div>
+
+          {/* Team Preferences */}
+          <div style={{ padding: '16px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'grid', gap: 16 }}>
+            <div>
+              <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>Team Preferences</p>
+              <p className="text-caption" style={{ fontSize: '0.78rem' }}>Let other students find you for team formation.</p>
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.openToTeam}
+                onChange={(e) => setForm((prev) => ({ ...prev, openToTeam: e.target.checked }))}
+                style={{ accentColor: 'var(--accent)', marginTop: 2 }}
+              />
+              <div>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>I am open to joining a team</div>
+                <div className="text-caption" style={{ fontSize: '0.75rem' }}>You will appear on the Find Teammates page.</div>
+              </div>
+            </label>
+
+            <div style={{ maxWidth: 220 }}>
+              <label className="label" htmlFor="preferredTeamSize">Preferred Team Size</label>
+              <input
+                className="input"
+                id="preferredTeamSize"
+                name="preferredTeamSize"
+                type="number"
+                min={2}
+                max={10}
+                value={form.preferredTeamSize}
+                onChange={onChange}
+                placeholder="e.g., 3"
+              />
+            </div>
+
+            <div>
+              <label className="label">Skills</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {SKILL_OPTIONS.map((skill) => {
+                  const active = form.skills.includes(skill)
+                  return (
+                    <button
+                      type="button"
+                      key={skill}
+                      onClick={() => toggleSkill(skill)}
+                      className={`badge ${active ? 'badge-accent' : 'badge-neutral'}`}
+                      style={{ cursor: 'pointer', border: 'none', fontSize: '0.75rem', padding: '6px 12px' }}
+                    >
+                      {skill}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
