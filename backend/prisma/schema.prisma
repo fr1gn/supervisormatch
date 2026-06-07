@@ -62,15 +62,17 @@ model Topic {
 }
 
 model Request {
-  id            String     @id @default(uuid())
-  studentUserId String
-  studentEmail  String
-  studentName   String
-  supervisorId  String
-  message       String
-  status        String     @default("pending") // pending, accepted, rejected
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                String     @id @default(uuid())
+  studentUserId     String
+  studentEmail      String
+  studentName       String
+  supervisorId      String
+  researchInterests String     @default("")
+  message           String
+  resumePath        String?
+  status            String     @default("pending") // pending, accepted, rejected
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   student       User       @relation("StudentRequests", fields: [studentUserId], references: [id], onDelete: Cascade)
   supervisor    Supervisor @relation(fields: [supervisorId], references: [id], onDelete: Cascade)

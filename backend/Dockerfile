@@ -7,8 +7,8 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# папка для файлов проектов
-RUN mkdir -p uploads/projects
+# папка для файлов проектов и резюме
+RUN mkdir -p uploads/projects uploads/resumes
 
 EXPOSE 4000
 

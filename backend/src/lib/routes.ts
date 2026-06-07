@@ -65,12 +65,58 @@ const addTopicSchema = z.object({
 
 const createRequestSchema = z.object({
   supervisorId: z.string().trim().min(1),
+  researchInterests: z.string().trim().min(1, 'Research interests are required.'),
   message: z
     .string()
     .trim()
     .optional()
-    .transform((v) => v || 'I would like to discuss potential supervision opportunities.'),
+    .transform((v) => v || ''),
 });
+
+// multer для загрузки резюме — только PDF, максимум 5 МБ
+const resumeStorage = multer.diskStorage({
+  destination: (req: any, file: any, cb: any) => {
+    const dir = path.join(process.cwd(), 'uploads', 'resumes');
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req: any, file: any, cb: any) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+const resumeUpload = multer({
+  storage: resumeStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (req: any, file: any, cb: any) => {
+    if (file.mimetype !== 'application/pdf') {
+      cb(new Error('Only PDF files are allowed.'), false);
+    } else {
+      cb(null, true);
+    }
+  }
+});
+
+// динамический расчёт силы заявки — НЕ хранится в БД
+function calculateApplicationScore(request: { researchInterests?: string; message?: string; resumePath?: string | null }) {
+  let score = 0;
+  if (request.researchInterests && request.researchInterests.trim().length > 0) score += 50;
+  if (request.message && request.message.trim().length > 0) score += 20;
+  if (request.resumePath) score += 30;
+  return score;
+}
+
+function getApplicationLabel(score: number): string {
+  if (score >= 90) return 'Strong Application';
+  if (score >= 70) return 'Good Application';
+  return 'Basic Application';
+}
+
+// добавляет applicationScore и applicationLabel к объекту заявки
+function addApplicationScore<T extends { researchInterests?: string; message?: string; resumePath?: string | null }>(request: T): T & { applicationScore: number; applicationLabel: string } {
+  const score = calculateApplicationScore(request);
+  return { ...request, applicationScore: score, applicationLabel: getApplicationLabel(score) };
+}
 
 const updateStatusSchema = z.object({
   status: z.enum(['pending', 'under review', 'accepted', 'rejected']),
@@ -449,13 +495,26 @@ export function registerRoutes(app: any): void {
     res.json({ ok: true });
   }));
 
-  // студент отправляет заявку супервайзеру
-  app.post('/requests', requireAuth, asyncRoute(async (req, res) => {
+  // студент отправляет заявку супервайзеру (с поддержкой FormData + PDF резюме)
+  app.post('/requests', requireAuth, (req: any, res: any, next: any) => {
+    resumeUpload.single('resume')(req, res, (err: any) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ message: 'Resume file is too large. Maximum size is 5 MB.' });
+        }
+        if (err.message === 'Only PDF files are allowed.') {
+          return res.status(400).json({ message: err.message });
+        }
+        return res.status(400).json({ message: err.message || 'File upload error.' });
+      }
+      next();
+    });
+  }, asyncRoute(async (req, res) => {
     const userPayload = mustUser(req);
     if (userPayload.role !== 'student') throw createError(403, 'Only student accounts can send requests.');
 
     const parsed = createRequestSchema.safeParse(req.body);
-    if (!parsed.success) throw createError(400, 'Invalid request payload');
+    if (!parsed.success) throw createError(400, parsed.error.issues?.[0]?.message || 'Invalid request payload');
 
     const student = await prisma.user.findUnique({ where: { id: userPayload.sub } });
     if (!student) throw createError(404, 'Student user not found.');
@@ -473,18 +532,48 @@ export function registerRoutes(app: any): void {
 
     if (duplicate) throw createError(400, 'You already have an active request for this supervisor.');
 
+    const resumeFile = (req as any).file;
+    const resumePath = resumeFile ? resumeFile.path : null;
+
     const request = await prisma.request.create({
       data: {
         studentUserId: student.id,
         studentEmail: student.email,
         studentName: student.fullName,
         supervisorId: supervisor.id,
+        researchInterests: parsed.data.researchInterests,
         message: parsed.data.message,
+        resumePath,
         status: 'pending'
       }
     });
 
-    res.json(request);
+    res.json(addApplicationScore(request));
+  }));
+
+  // скачивание резюме из заявки
+  app.get('/requests/:id/resume', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    const request = await prisma.request.findUnique({ where: { id: (req as any).params.id } });
+    if (!request) throw createError(404, 'Request not found.');
+    if (!request.resumePath) throw createError(404, 'No resume attached to this request.');
+
+    // доступ — только сам студент или его супервайзер
+    if (userPayload.role === 'student' && request.studentUserId !== userPayload.sub) {
+      throw createError(403, 'Access denied.');
+    }
+    if (userPayload.role === 'supervisor') {
+      const sup = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+      if (!sup || request.supervisorId !== sup.id) throw createError(403, 'Access denied.');
+    }
+
+    if (!fs.existsSync(request.resumePath)) throw createError(404, 'Resume file not found on disk.');
+
+    const fileName = path.basename(request.resumePath);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Type', 'application/pdf');
+    const stream = fs.createReadStream(request.resumePath);
+    stream.pipe(res as any);
   }));
 
   // заявки студента (для страницы 'Мои заявки')
@@ -496,7 +585,7 @@ export function registerRoutes(app: any): void {
       where: { studentUserId: userPayload.sub },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(requests);
+    res.json(requests.map(addApplicationScore));
   }));
 
   // заявки для супервайзера (дашборд)
@@ -528,8 +617,8 @@ export function registerRoutes(app: any): void {
       },
     });
 
-    // вытаскиваем все поля студента в корень объекта
-    const result = requests.map(r => ({
+    // вытаскиваем все поля студента в корень объекта + считаем score
+    const result = requests.map(r => addApplicationScore({
       ...r,
       studentAvatar: r.student?.avatar || null,
       studentDepartment: r.student?.department || null,

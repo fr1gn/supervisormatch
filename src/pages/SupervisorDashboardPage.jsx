@@ -1,4 +1,4 @@
-import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap } from 'lucide-react'
+import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap, FileText, Download, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
@@ -8,6 +8,85 @@ import { useToast } from '../context/ToastContext'
 import { useConfirm } from '../components/ConfirmDialog'
 import { getInitials, slotsLeft } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
+
+const API_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:4000' : '');
+
+function ApplicationStrengthInline({ score, label }) {
+  if (!score && score !== 0) return null
+  const color = score >= 90 ? 'var(--success)' : score >= 70 ? 'var(--accent)' : 'var(--warning)'
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '10px 14px',
+      borderRadius: 'var(--radius-sm)',
+      background: `${color}10`,
+      border: `1px solid ${color}25`,
+    }}>
+      <Sparkles size={16} style={{ color, flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+          <span style={{ fontSize: '1rem', fontWeight: 700, color }}>{score}%</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color, opacity: 0.85 }}>{label}</span>
+        </div>
+        <div style={{
+          height: 4,
+          borderRadius: 'var(--radius-full)',
+          background: `${color}20`,
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${score}%`,
+            height: '100%',
+            borderRadius: 'var(--radius-full)',
+            background: color,
+            transition: 'width 0.6s ease',
+          }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResumeDownloadButton({ requestId }) {
+  const handleDownload = async () => {
+    try {
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`${API_URL}/requests/${requestId}/resume`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        return
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'resume.pdf'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      // silently fail
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary btn-xs"
+      onClick={handleDownload}
+      style={{ gap: 5 }}
+    >
+      <Download size={12} />
+      Download Resume
+    </button>
+  )
+}
 
 function StudentProfileModal({ student, onClose }) {
   if (!student) return null
@@ -154,11 +233,30 @@ function StudentProfileModal({ student, onClose }) {
               </>
             )}
 
+            {student.researchInterests && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  Research Interests
+                </p>
+                <p className="text-body" style={{
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6,
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-secondary)',
+                  borderLeft: '3px solid var(--accent)',
+                }}>
+                  {student.researchInterests}
+                </p>
+              </>
+            )}
+
             {student.message && (
               <>
                 <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
                 <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
-                  Message to the application
+                  Motivation Message
                 </p>
                 <p className="text-body" style={{
                   fontSize: '0.875rem',
@@ -170,6 +268,28 @@ function StudentProfileModal({ student, onClose }) {
                 }}>
                   {student.message}
                 </p>
+              </>
+            )}
+
+            {/* Application Strength */}
+            {student.applicationScore > 0 && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  Application Strength
+                </p>
+                <ApplicationStrengthInline score={student.applicationScore} label={student.applicationLabel} />
+              </>
+            )}
+
+            {/* Resume Download */}
+            {student.resumePath && (
+              <>
+                <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
+                <p className="text-caption" style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10, color: 'var(--text-tertiary)' }}>
+                  Resume / CV
+                </p>
+                <ResumeDownloadButton requestId={student.id} />
               </>
             )}
           </div>
@@ -534,6 +654,35 @@ export default function SupervisorDashboardPage() {
                         <StatusBadge status={request.status} />
                       </div>
 
+                      {/* Research Interests */}
+                      {request.researchInterests && (
+                        <div style={{ marginBottom: 10 }}>
+                          <p className="text-caption" style={{
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            marginBottom: 4,
+                            color: 'var(--text-tertiary)',
+                          }}>
+                            Research Interests
+                          </p>
+                          <p
+                            className="text-body"
+                            style={{
+                              fontSize: '0.8125rem',
+                              padding: '10px 14px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'var(--bg-secondary)',
+                              borderLeft: '3px solid var(--accent)',
+                              lineHeight: 1.55,
+                            }}
+                          >
+                            {request.researchInterests}
+                          </p>
+                        </div>
+                      )}
+
                       {request.message && (
                         <p
                           className="text-body"
@@ -550,6 +699,16 @@ export default function SupervisorDashboardPage() {
                           {request.message}
                         </p>
                       )}
+
+                      {/* Application Strength + Resume row */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                        {request.applicationScore > 0 && (
+                          <ApplicationStrengthInline score={request.applicationScore} label={request.applicationLabel} />
+                        )}
+                        {request.resumePath && (
+                          <ResumeDownloadButton requestId={request.id} />
+                        )}
+                      </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
                         <Clock size={13} style={{ color: 'var(--text-tertiary)' }} />

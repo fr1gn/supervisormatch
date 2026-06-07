@@ -96,8 +96,13 @@ export function AppProvider({ children }) {
     }
   }, [session, fetchSupervisors, fetchRequests])
 
-  const sendRequest = async ({ supervisorId, message }) => {
-    const res = await api.post('/requests', { supervisorId, message });
+  const sendRequest = async (payload) => {
+    let res;
+    if (payload instanceof FormData) {
+      res = await api.postFormData('/requests', payload);
+    } else {
+      res = await api.post('/requests', payload);
+    }
     if (res.ok) {
       await fetchRequests();
     }

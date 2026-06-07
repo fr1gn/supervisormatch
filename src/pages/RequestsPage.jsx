@@ -1,4 +1,4 @@
-import { Inbox, CheckCircle, Clock, ArrowRight } from 'lucide-react'
+import { Inbox, CheckCircle, Clock, ArrowRight, Sparkles, FileText } from 'lucide-react'
 import { Navigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
@@ -7,7 +7,26 @@ import { useApp } from '../context/AppContext'
 import { getInitials } from '../lib/utils'
 import { staggerContainer, staggerItem } from '../lib/animations'
 
+function ApplicationStrengthBadge({ score, label }) {
+  if (!score && score !== 0) return null
+  const color = score >= 90 ? 'var(--success)' : score >= 70 ? 'var(--accent)' : 'var(--warning)'
 
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '8px 12px',
+      borderRadius: 'var(--radius-sm)',
+      background: `${color}10`,
+      border: `1px solid ${color}25`,
+    }}>
+      <Sparkles size={14} style={{ color, flexShrink: 0 }} />
+      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color }}>{score}%</span>
+      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color, opacity: 0.8 }}>{label}</span>
+    </div>
+  )
+}
 
 export default function RequestsPage() {
   const { session, requests, supervisors } = useApp()
@@ -141,6 +160,35 @@ export default function RequestsPage() {
                   <StatusBadge status={request.status} />
                 </div>
 
+                {/* Research Interests */}
+                {request.researchInterests && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p className="text-caption" style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      marginBottom: 6,
+                      color: 'var(--text-tertiary)',
+                    }}>
+                      Research Interests
+                    </p>
+                    <p
+                      className="text-body"
+                      style={{
+                        fontSize: '0.8125rem',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--bg-secondary)',
+                        borderLeft: '3px solid var(--accent)',
+                        lineHeight: 1.55,
+                      }}
+                    >
+                      {request.researchInterests}
+                    </p>
+                  </div>
+                )}
+
                 {request.message && (
                   <p
                     className="text-body"
@@ -158,15 +206,49 @@ export default function RequestsPage() {
                   </p>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={13} strokeWidth={2} style={{ color: 'var(--text-tertiary)' }} />
-                  <span className="text-caption" style={{ fontSize: '0.75rem' }}>
-                    Sent {new Date(request.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: request.status === 'accepted' ? 0 : undefined,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Clock size={13} strokeWidth={2} style={{ color: 'var(--text-tertiary)' }} />
+                    <span className="text-caption" style={{ fontSize: '0.75rem' }}>
+                      Sent {new Date(request.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                  </div>
+
+                  {/* Application Strength */}
+                  {request.applicationScore > 0 && (
+                    <ApplicationStrengthBadge
+                      score={request.applicationScore}
+                      label={request.applicationLabel}
+                    />
+                  )}
+
+                  {/* Resume indicator */}
+                  {request.resumePath && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--success-soft)',
+                      color: 'var(--success-text)',
+                      fontSize: '0.6875rem',
+                      fontWeight: 600,
+                    }}>
+                      <FileText size={12} />
+                      Resume Attached
+                    </div>
+                  )}
                 </div>
 
                 {request.status === 'accepted' && (
