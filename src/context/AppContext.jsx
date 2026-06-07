@@ -122,7 +122,7 @@ export function AppProvider({ children }) {
     if (keyword) params.set('keyword', keyword)
     const qs = params.toString()
     const res = await api.get(`/students${qs ? '?' + qs : ''}`)
-    return res.ok ? res.data : []
+    return res.ok && Array.isArray(res.data) ? res.data : []
   }, [])
 
   // создаём команду с выбранными участниками (они получают приглашения)
@@ -132,12 +132,12 @@ export function AppProvider({ children }) {
 
   const fetchMyTeams = useCallback(async () => {
     const res = await api.get('/teams/mine')
-    return res.ok ? res.data : []
+    return res.ok && Array.isArray(res.data) ? res.data : []
   }, [])
 
   const fetchInvitations = useCallback(async () => {
     const res = await api.get('/invitations')
-    return res.ok ? res.data : []
+    return res.ok && Array.isArray(res.data) ? res.data : []
   }, [])
 
   // отправить приглашение в команду (discovery)
