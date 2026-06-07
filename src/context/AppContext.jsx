@@ -150,11 +150,23 @@ export function AppProvider({ children }) {
     return api.patch(`/invitations/${invitationId}`, { action })
   }, [])
 
-  const updateRequestStatus = async (requestId, status) => {
-    const res = await api.patch(`/requests/${requestId}/status`, { status });
+  // status update; при принятии можно сразу передать topicId для назначения темы
+  const updateRequestStatus = async (requestId, status, topicId) => {
+    const body = topicId ? { status, topicId } : { status };
+    const res = await api.patch(`/requests/${requestId}/status`, body);
     if (res.ok) {
       await fetchRequests();
-      await fetchSupervisors(); 
+      await fetchSupervisors();
+    }
+    return res;
+  }
+
+  // назначить тему принятой заявке (существующую или новую)
+  const assignTopic = async ({ requestId, topicId, newTopic }) => {
+    const res = await api.post('/topics/assign', { requestId, topicId, newTopic });
+    if (res.ok) {
+      await fetchRequests();
+      await fetchSupervisors();
     }
     return res;
   }
@@ -200,6 +212,27 @@ export function AppProvider({ children }) {
     return res;
   }
 
+  // темы текущего супервайзера с lifecycle-статусами + счётчик активных тем
+  const fetchMyTopics = useCallback(async () => {
+    const res = await api.get('/topics/mine');
+    if (res.ok) return res.data;
+    return { topics: [], activeCount: 0, capacity: 0 };
+  }, [])
+
+  // редактировать тему (название/область/описание или архивация)
+  const editTopic = async (topicId, payload) => {
+    const res = await api.patch(`/topics/${topicId}`, payload);
+    if (res.ok) await fetchSupervisors();
+    return res;
+  }
+
+  // архивировать / разархивировать тему
+  const archiveTopic = async (topicId, archived = true) => {
+    const res = await api.patch(`/topics/${topicId}`, { archived });
+    if (res.ok) await fetchSupervisors();
+    return res;
+  }
+
   const value = {
     session,
     supervisors,
@@ -219,6 +252,10 @@ export function AppProvider({ children }) {
     updateSupervisorProfile,
     addSupervisorTopic,
     removeSupervisorTopic,
+    fetchMyTopics,
+    editTopic,
+    archiveTopic,
+    assignTopic,
     fetchStudents,
     createTeam,
     fetchMyTeams,

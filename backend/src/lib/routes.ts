@@ -22,6 +22,9 @@ import {
   getCommittedStudentIds,
   findExistingAssignment,
   invalidateCompetingRequests,
+  countActiveTopics,
+  assertTopicCapacity,
+  assignTopicToRequest,
 } from './domain';
 import multer from 'multer';
 import path from 'path';
@@ -75,6 +78,22 @@ const addTopicSchema = z.object({
   title: z.string().trim().min(1),
   area: z.string().trim().min(1),
   description: z.string().trim().min(1),
+});
+
+// редактирование темы — все поля опциональны
+const editTopicSchema = z.object({
+  title: z.string().trim().min(1).optional(),
+  area: z.string().trim().min(1).optional(),
+  description: z.string().trim().min(1).optional(),
+  archived: z.boolean().optional(),
+});
+
+// назначение темы заявке: либо существующая тема (topicId),
+// либо новая тема, которая создаётся и сразу назначается
+const assignTopicSchema = z.object({
+  requestId: z.string().trim().min(1),
+  topicId: z.string().trim().optional(),
+  newTopic: addTopicSchema.optional(),
 });
 
 const createRequestSchema = z.object({
@@ -509,6 +528,9 @@ export function registerRoutes(app: any): void {
     if (!supervisor) throw createError(404, 'Supervisor not found.');
     if (supervisor.userId !== userPayload.sub) throw createError(403, 'You can only add topics to your own profile.');
 
+    // #1 — число активных тем ограничено вместимостью супервайзера
+    await assertTopicCapacity(supervisor);
+
     const nextTopic = await prisma.topic.create({
       data: {
         supervisorId: supervisor.id,
@@ -537,13 +559,147 @@ export function registerRoutes(app: any): void {
     if (!supervisor) throw createError(404, 'Supervisor not found.');
     if (supervisor.userId !== userPayload.sub) throw createError(403, 'You can only remove topics from your own profile.');
 
-    try {
-      await prisma.topic.delete({ where: { id: (req as any).params.topicId } });
-    } catch {
-      throw createError(404, 'Topic not found.');
+    const topic = await prisma.topic.findUnique({ where: { id: (req as any).params.topicId } });
+    if (!topic || topic.supervisorId !== supervisor.id) throw createError(404, 'Topic not found.');
+
+    // #7 — нельзя удалить тему, назначенную активному проекту (целостность данных)
+    if (topic.status === 'Assigned') {
+      throw createError(400, 'This topic is assigned to an active project. Archive it instead, or disband the project first.');
     }
 
+    await prisma.topic.delete({ where: { id: topic.id } });
+
     res.json({ ok: true });
+  }));
+
+  // ==================== TOPICS (центральная сущность) ====================
+
+  // создать тему для текущего супервайзера (capacity-ограниченная)
+  app.post('/topics', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisors can create topics.');
+
+    const parsed = addTopicSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, 'Invalid topic payload');
+
+    const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+    if (!supervisor) throw createError(404, 'Supervisor profile not found.');
+
+    // #1 — лимит активных тем = вместимость
+    await assertTopicCapacity(supervisor);
+
+    const topic = await prisma.topic.create({
+      data: {
+        supervisorId: supervisor.id,
+        title: parsed.data.title,
+        area: parsed.data.area,
+        description: parsed.data.description,
+      },
+    });
+
+    if (!supervisor.areas.includes(topic.area)) {
+      await prisma.supervisor.update({
+        where: { id: supervisor.id },
+        data: { areas: { push: topic.area } },
+      });
+    }
+
+    res.json(topic);
+  }));
+
+  // темы текущего супервайзера (с признаком, занята ли тема активным проектом)
+  app.get('/topics/mine', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisors can view their topics.');
+
+    const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+    if (!supervisor) { res.json({ topics: [], activeCount: 0, capacity: 0 }); return; }
+
+    const topics = await prisma.topic.findMany({
+      where: { supervisorId: supervisor.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    const activeCount = await countActiveTopics(supervisor.id);
+
+    res.json({ topics, activeCount, capacity: supervisor.capacity });
+  }));
+
+  // редактировать тему (название/область/описание/архивация)
+  app.patch('/topics/:id', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisors can edit topics.');
+
+    const parsed = editTopicSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, 'Invalid topic payload');
+
+    const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+    if (!supervisor) throw createError(404, 'Supervisor profile not found.');
+
+    const topic = await prisma.topic.findUnique({ where: { id: (req as any).params.id } });
+    if (!topic || topic.supervisorId !== supervisor.id) throw createError(404, 'Topic not found.');
+
+    // нельзя разархивировать тему, если уже исчерпан лимит активных тем
+    if (parsed.data.archived === false && topic.archived === true && topic.status !== 'Completed') {
+      await assertTopicCapacity(supervisor);
+    }
+
+    const data: Record<string, any> = {};
+    if (parsed.data.title !== undefined) data.title = parsed.data.title;
+    if (parsed.data.area !== undefined) data.area = parsed.data.area;
+    if (parsed.data.description !== undefined) data.description = parsed.data.description;
+    if (parsed.data.archived !== undefined) data.archived = parsed.data.archived;
+
+    const updated = await prisma.topic.update({ where: { id: topic.id }, data });
+    res.json(updated);
+  }));
+
+  // назначить тему заявке (после принятия). поддерживает существующую тему или создание новой.
+  app.post('/topics/assign', requireAuth, asyncRoute(async (req, res) => {
+    const userPayload = mustUser(req);
+    if (userPayload.role !== 'supervisor') throw createError(403, 'Only supervisors can assign topics.');
+
+    const parsed = assignTopicSchema.safeParse(req.body);
+    if (!parsed.success) throw createError(400, 'Invalid assignment payload');
+    if (!parsed.data.topicId && !parsed.data.newTopic) {
+      throw createError(400, 'Provide an existing topicId or a newTopic to assign.');
+    }
+
+    const supervisor = await prisma.supervisor.findUnique({ where: { userId: userPayload.sub } });
+    if (!supervisor) throw createError(404, 'Supervisor profile not found.');
+
+    const request = await prisma.request.findUnique({ where: { id: parsed.data.requestId } });
+    if (!request) throw createError(404, 'Request not found.');
+    if (request.supervisorId !== supervisor.id) throw createError(403, 'You can only assign topics to your own requests.');
+    if (request.status !== 'accepted') throw createError(400, 'You can only assign a topic to an accepted request.');
+
+    // если темы нет — создаём её (с проверкой лимита) и сразу назначаем
+    let topicId = parsed.data.topicId || null;
+    if (!topicId) {
+      await assertTopicCapacity(supervisor);
+      const created = await prisma.topic.create({
+        data: {
+          supervisorId: supervisor.id,
+          title: parsed.data.newTopic!.title,
+          area: parsed.data.newTopic!.area,
+          description: parsed.data.newTopic!.description,
+        },
+      });
+      if (!supervisor.areas.includes(created.area)) {
+        await prisma.supervisor.update({
+          where: { id: supervisor.id },
+          data: { areas: { push: created.area } },
+        });
+      }
+      topicId = created.id;
+    }
+
+    const project = await assignTopicToRequest({
+      supervisorId: supervisor.id,
+      requestId: request.id,
+      topicId,
+    });
+
+    res.json(project);
   }));
 
   // студент отправляет заявку супервайзеру (с поддержкой FormData + PDF резюме)
@@ -687,6 +843,8 @@ export function registerRoutes(app: any): void {
             },
           },
         },
+        // проект (если уже создан) — чтобы дашборд знал, назначена ли тема
+        project: { select: { id: true, topicId: true, topicTitle: true } },
       },
     });
 
@@ -759,6 +917,16 @@ export function registerRoutes(app: any): void {
         throw createError(400, 'Supervisor has no remaining capacity for this application.');
       }
 
+      // тему можно передать прямо при принятии (одношаговый assign).
+      // если topicId указан — валидируем его до создания проекта, чтобы не плодить
+      // проект при заведомо некорректной теме.
+      const acceptTopicId = typeof (req.body as any)?.topicId === 'string' ? (req.body as any).topicId.trim() : '';
+      if (acceptTopicId) {
+        const topic = await prisma.topic.findUnique({ where: { id: acceptTopicId } });
+        if (!topic || topic.supervisorId !== supervisor.id) throw createError(404, 'Topic not found.');
+        if (topic.status === 'Assigned') throw createError(409, 'This topic is already assigned to an active project.');
+      }
+
       // создаём проект если его ещё нет для этой заявки (один общий проект на команду)
       const existingProject = await prisma.project.findUnique({ where: { requestId: request.id } });
       if (!existingProject) {
@@ -776,6 +944,11 @@ export function registerRoutes(app: any): void {
             supervisorId: supervisor.id,
           }
         });
+      }
+
+      // одношаговое назначение темы при принятии (опционально)
+      if (acceptTopicId) {
+        await assignTopicToRequest({ supervisorId: supervisor.id, requestId: request.id, topicId: acceptTopicId });
       }
     }
 
@@ -1135,6 +1308,7 @@ export function registerRoutes(app: any): void {
         files: { orderBy: { createdAt: 'desc' } },
         student: { select: { id: true, fullName: true, avatar: true, email: true } },
         supervisor: { select: { id: true, name: true, avatar: true, userId: true } },
+        topic: { select: { id: true, title: true, area: true, description: true, status: true } },
       },
     });
     if (!project) throw createError(404, 'Project not found.');
@@ -1289,6 +1463,13 @@ export function registerRoutes(app: any): void {
       where: { id: project.requestId },
       data: { status: 'rejected' },
     }).catch(() => { });
+
+    // #7 — освобождаем тему: проект распущен, тема снова доступна для назначения
+    if (project.topicId) {
+      await prisma.topic
+        .update({ where: { id: project.topicId }, data: { status: 'Available' } })
+        .catch(() => {});
+    }
 
     // удаляем проект (каскадно удалятся ProjectFile записи из БД)
     await prisma.project.delete({ where: { id: project.id } });

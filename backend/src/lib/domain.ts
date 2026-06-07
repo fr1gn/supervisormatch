@@ -162,6 +162,94 @@ export async function findExistingAssignment(
   return null;
 }
 
+// ==================== TOPIC LAYER ====================
+
+// сколько у супервайзера АКТИВНЫХ тем (не архивных и не завершённых).
+// именно это число ограничено вместимостью супервайзера.
+export async function countActiveTopics(supervisorId: string): Promise<number> {
+  return prisma.topic.count({
+    where: { supervisorId, archived: false, status: { not: 'Completed' } },
+  });
+}
+
+// проверяем, что супервайзер может создать ещё одну активную тему.
+// бросаем ошибку, если лимит (= capacity) исчерпан.
+export async function assertTopicCapacity(supervisor: {
+  id: string;
+  capacity: number;
+}): Promise<void> {
+  const active = await countActiveTopics(supervisor.id);
+  if (active >= supervisor.capacity) {
+    const err = new Error(
+      `Active topic limit reached (${active}/${supervisor.capacity}). Archive or complete a topic before adding a new one.`,
+    ) as Error & { statusCode: number };
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
+// связываем тему с проектом заявки. центральная точка topic-assignment:
+//  - проверяет эксклюзивность темы (одна тема = один активный проект)
+//  - записывает снимок темы в проект (topicTitle / topicDescription)
+//  - переводит тему в статус Assigned
+// требует, чтобы проект для заявки уже существовал (создаётся при принятии).
+export async function assignTopicToRequest(params: {
+  supervisorId: string;
+  requestId: string;
+  topicId: string;
+}): Promise<any> {
+  const { supervisorId, requestId, topicId } = params;
+
+  const project = await prisma.project.findUnique({ where: { requestId } });
+  if (!project) {
+    const err = new Error('No project exists for this request yet. Accept the request first.') as Error & { statusCode: number };
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const topic = await prisma.topic.findUnique({ where: { id: topicId } });
+  if (!topic) {
+    const err = new Error('Topic not found.') as Error & { statusCode: number };
+    err.statusCode = 404;
+    throw err;
+  }
+  if (topic.supervisorId !== supervisorId) {
+    const err = new Error('You can only assign your own topics.') as Error & { statusCode: number };
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // #7 — тема не может принадлежать двум активным проектам одновременно
+  const conflicting = await prisma.project.findFirst({
+    where: { topicId, status: 'active', id: { not: project.id } },
+  });
+  if (conflicting) {
+    const err = new Error('This topic is already assigned to another active project.') as Error & { statusCode: number };
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // если у проекта раньше была другая тема — освобождаем её
+  if (project.topicId && project.topicId !== topicId) {
+    await prisma.topic
+      .update({ where: { id: project.topicId }, data: { status: 'Available' } })
+      .catch(() => {});
+  }
+
+  const updatedProject = await prisma.project.update({
+    where: { id: project.id },
+    data: {
+      topicId: topic.id,
+      topicTitle: topic.title,
+      topicDescription: topic.description,
+    },
+  });
+
+  await prisma.topic.update({ where: { id: topic.id }, data: { status: 'Assigned' } });
+
+  return updatedProject;
+}
+
 // после принятия — гасим конкурирующие заявки того же студента/команды
 export async function invalidateCompetingRequests(
   request: { id: string; studentUserId: string; teamId?: string | null },

@@ -29,6 +29,8 @@ export interface TopicRecord {
   title: string;
   area: string;
   description: string;
+  status: 'Available' | 'Assigned' | 'Completed';
+  archived: boolean;
   createdAt: string;
 }
 

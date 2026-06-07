@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { FolderOpen, FileText, Calendar, User } from 'lucide-react'
+import { FolderOpen, FileText, Calendar, User, Tag } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { api } from '../lib/api'
 import EmptyState from '../components/EmptyState'
@@ -101,14 +101,36 @@ export default function ProjectsListPage() {
                 }}>
                   <FolderOpen size={20} style={{ color: 'var(--accent)' }} />
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <h3 style={{
-                    fontSize: '1rem', fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {project.title}
-                  </h3>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <h3 style={{
+                      fontSize: '1rem', fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {project.title}
+                    </h3>
+                    {(() => {
+                      const completed = project.status === 'completed'
+                      const color = completed ? '#10b981' : 'var(--accent)'
+                      return (
+                        <span style={{
+                          fontSize: '0.62rem', fontWeight: 700, padding: '1px 7px', borderRadius: '999px',
+                          background: `${color}1a`, color, textTransform: 'capitalize', flexShrink: 0,
+                        }}>{project.status || 'active'}</span>
+                      )
+                    })()}
+                  </div>
+                  {/* assigned topic */}
+                  {project.topicTitle && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.3rem' }}>
+                      <Tag size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                      <span style={{
+                        fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 500,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>{project.topicTitle}</span>
+                    </div>
+                  )}
                   {project.description && (
                     <p style={{
                       fontSize: '0.85rem', color: 'var(--text-tertiary)',

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Upload, Download, Trash2, FileText, Image, File,
-  Pencil, Check, X, Users, FileSpreadsheet, FileArchive, FolderOpen, AlertTriangle,
+  Pencil, Check, X, Users, FileSpreadsheet, FileArchive, FolderOpen, AlertTriangle, Tag,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useToast } from '../context/ToastContext'
@@ -249,6 +249,54 @@ export default function ProjectPage() {
           borderRadius: '16px', padding: '1.5rem', marginBottom: '1.5rem',
         }}
       >
+        {/* assigned topic — central entity, shown prominently at the top */}
+        {(() => {
+          const topicTitle = project.topic?.title || project.topicTitle
+          const topicDesc = project.topic?.description || project.topicDescription
+          const topicArea = project.topic?.area
+          if (!topicTitle) {
+            return (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem',
+                padding: '0.6rem 0.85rem', borderRadius: '10px',
+                background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)',
+              }}>
+                <Tag size={15} style={{ color: '#f59e0b' }} />
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  No topic assigned yet.
+                </span>
+              </div>
+            )
+          }
+          return (
+            <div style={{
+              marginBottom: '1rem', padding: '0.85rem 1rem', borderRadius: '12px',
+              background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: topicDesc ? '0.4rem' : 0, flexWrap: 'wrap' }}>
+                <Tag size={15} style={{ color: 'var(--accent)' }} />
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+                  Research Topic
+                </span>
+                {topicArea && (
+                  <span style={{
+                    fontSize: '0.65rem', fontWeight: 600, padding: '1px 8px', borderRadius: '999px',
+                    background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent)',
+                  }}>{topicArea}</span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {topicTitle}
+              </div>
+              {topicDesc && (
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.3rem', lineHeight: 1.5 }}>
+                  {topicDesc}
+                </p>
+              )}
+            </div>
+          )
+        })()}
+
         {/* title */}
         <div style={{ marginBottom: '0.75rem' }}>
           {editingTitle ? (
@@ -268,14 +316,28 @@ export default function ProjectPage() {
               <button onClick={() => setEditingTitle(false)} style={iconBtnStyle}><X size={18} /></button>
             </div>
           ) : (
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-              onClick={() => { setTitleDraft(project.title); setEditingTitle(true) }}
-            >
-              <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {project.title}
-              </h1>
-              <Pencil size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => { setTitleDraft(project.title); setEditingTitle(true) }}
+              >
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {project.title}
+                </h1>
+                <Pencil size={16} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+              </div>
+              {(() => {
+                const completed = project.status === 'completed'
+                const color = completed ? '#10b981' : 'var(--accent)'
+                return (
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: 700, padding: '2px 10px', borderRadius: '999px',
+                    background: `${color}1a`, color, border: `1px solid ${color}40`, textTransform: 'capitalize',
+                  }}>
+                    {project.status || 'active'}
+                  </span>
+                )
+              })()}
             </div>
           )}
         </div>

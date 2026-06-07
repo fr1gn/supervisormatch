@@ -1,5 +1,5 @@
-import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap, FileText, Download, Sparkles } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Inbox, Plus, Trash2, Users, Clock, BookOpen, Eye, Check, X, Mail, Phone, GraduationCap, FileText, Download, Sparkles, Tag, Archive, ArchiveRestore } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
@@ -321,6 +321,187 @@ function InfoRow({ icon: Icon, label, value }) {
   )
 }
 
+// цвет бейджа статуса темы
+function topicStatusColor(status) {
+  if (status === 'Assigned') return 'var(--accent)'
+  if (status === 'Completed') return 'var(--success)'
+  return 'var(--warning)' // Available
+}
+
+function TopicStatusBadge({ status, archived }) {
+  if (archived) {
+    return <span className="badge badge-neutral" style={{ fontSize: '0.625rem' }}>Archived</span>
+  }
+  const color = topicStatusColor(status)
+  return (
+    <span style={{
+      fontSize: '0.625rem', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-full)',
+      background: `${color}18`, color, border: `1px solid ${color}33`,
+    }}>
+      {status || 'Available'}
+    </span>
+  )
+}
+
+// Модалка назначения темы при принятии заявки (или для уже принятой без темы).
+// Супервайзер выбирает существующую доступную тему ИЛИ создаёт новую и сразу назначает.
+function AssignTopicModal({ open, request, availableTopics, onClose, onConfirm }) {
+  const [mode, setMode] = useState('existing') // 'existing' | 'new'
+  const [selectedId, setSelectedId] = useState('')
+  const [draft, setDraft] = useState({ title: '', area: '', description: '' })
+  const [saving, setSaving] = useState(false)
+
+  // сбрасываем форму при каждом открытии
+  useEffect(() => {
+    if (open) {
+      const firstAvailable = availableTopics[0]?.id || ''
+      setMode(availableTopics.length > 0 ? 'existing' : 'new')
+      setSelectedId(firstAvailable)
+      setDraft({ title: '', area: '', description: '' })
+      setSaving(false)
+    }
+  }, [open, availableTopics])
+
+  if (!open) return null
+
+  const submit = async () => {
+    setSaving(true)
+    let payload
+    if (mode === 'existing') {
+      if (!selectedId) { setSaving(false); return }
+      payload = { topicId: selectedId }
+    } else {
+      if (!draft.title.trim() || !draft.area.trim() || !draft.description.trim()) { setSaving(false); return }
+      payload = { newTopic: { title: draft.title.trim(), area: draft.area.trim(), description: draft.description.trim() } }
+    }
+    await onConfirm(payload)
+    setSaving(false)
+  }
+
+  const studentLabel = request?.applicationType === 'team'
+    ? (request?.team?.name || 'this team')
+    : (request?.studentName || 'this student')
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        key="topic-overlay"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
+          zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+      >
+        <motion.div
+          key="topic-modal"
+          initial={{ opacity: 0, scale: 0.95, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          transition={{ duration: 0.2 }}
+          onClick={(e) => e.stopPropagation()}
+          className="card"
+          style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 26 }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+            <h2 className="heading-subtitle" style={{ fontSize: '1.125rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Tag size={18} style={{ color: 'var(--accent)' }} /> Assign a Topic
+            </h2>
+            <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)' }}>
+              <X size={18} />
+            </button>
+          </div>
+          <p className="text-caption" style={{ marginBottom: 18 }}>
+            Every project must be linked to a topic. Choose one for <strong>{studentLabel}</strong>.
+          </p>
+
+          {/* mode switch */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setMode('existing')}
+              disabled={availableTopics.length === 0}
+              style={{ flex: 1, opacity: availableTopics.length === 0 ? 0.5 : 1 }}
+            >
+              Existing Topic
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${mode === 'new' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setMode('new')}
+              style={{ flex: 1 }}
+            >
+              <Plus size={14} /> New Topic
+            </button>
+          </div>
+
+          {mode === 'existing' ? (
+            availableTopics.length === 0 ? (
+              <p className="text-caption" style={{ padding: '12px 0' }}>
+                No available topics. Create a new one to continue.
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: 8, marginBottom: 4 }}>
+                {availableTopics.map((t) => (
+                  <label
+                    key={t.id}
+                    style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', cursor: 'pointer',
+                      borderRadius: 'var(--radius-sm)', border: `1px solid ${selectedId === t.id ? 'var(--accent)' : 'var(--border)'}`,
+                      background: selectedId === t.id ? 'var(--accent-soft)' : 'var(--surface)',
+                    }}
+                  >
+                    <input
+                      type="radio" name="topic-choice" checked={selectedId === t.id}
+                      onChange={() => setSelectedId(t.id)} style={{ marginTop: 3 }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{t.title}</span>
+                        <span className="badge badge-accent" style={{ fontSize: '0.625rem' }}>{t.area}</span>
+                      </div>
+                      <p className="text-caption" style={{ fontSize: '0.75rem' }}>{t.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )
+          ) : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div>
+                <label className="label">Topic Title</label>
+                <input className="input" value={draft.title}
+                  onChange={(e) => setDraft((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="e.g., Graph Neural Networks for Fraud Detection" />
+              </div>
+              <div>
+                <label className="label">Main Area</label>
+                <input className="input" value={draft.area}
+                  onChange={(e) => setDraft((p) => ({ ...p, area: e.target.value }))}
+                  placeholder="e.g., Machine Learning" />
+              </div>
+              <div>
+                <label className="label">Description</label>
+                <textarea className="input" rows={3} value={draft.description}
+                  onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Briefly describe this topic" />
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} style={{ flex: 1 }} disabled={saving}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={submit} style={{ flex: 1 }} disabled={saving}>
+              <Check size={14} /> {saving ? 'Assigning...' : 'Accept & Assign'}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 export default function SupervisorDashboardPage() {
   const {
     session,
@@ -329,6 +510,8 @@ export default function SupervisorDashboardPage() {
     updateRequestStatus,
     addSupervisorTopic,
     removeSupervisorTopic,
+    archiveTopic,
+    assignTopic,
   } = useApp()
 
   const toast = useToast()
@@ -337,8 +520,19 @@ export default function SupervisorDashboardPage() {
   const [topicDraft, setTopicDraft] = useState({ title: '', area: '', description: '' })
   const [topicSaving, setTopicSaving] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
+  const [topicModalRequest, setTopicModalRequest] = useState(null) // заявка, для которой назначаем тему
 
   const supervisor = getCurrentSupervisor()
+
+  // только доступные (не архивные, не назначенные/завершённые) темы — для назначения
+  const availableTopics = useMemo(
+    () => (supervisor?.topics || []).filter((t) => !t.archived && (t.status || 'Available') === 'Available'),
+    [supervisor],
+  )
+  const activeTopicCount = useMemo(
+    () => (supervisor?.topics || []).filter((t) => !t.archived && t.status !== 'Completed').length,
+    [supervisor],
+  )
 
   const requests = useMemo(() => {
     return getSupervisorRequests().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -377,24 +571,60 @@ export default function SupervisorDashboardPage() {
     toast.success('Topic removed.')
   }
 
-  const handleStatusUpdate = async (requestId, status, studentName) => {
-    const isAccept = status === 'accepted'
+  // принятие теперь проходит через назначение темы — открываем модалку
+  const handleAccept = (request) => {
+    setTopicModalRequest(request)
+  }
+
+  // подтверждение из модалки: принимаем заявку (если ещё не принята), затем назначаем тему
+  const handleAssignConfirm = async (payload) => {
+    const request = topicModalRequest
+    if (!request) return
+
+    // если заявка ещё не принята — принимаем её (создаётся проект)
+    if (request.status !== 'accepted') {
+      const acceptRes = await updateRequestStatus(request.id, 'accepted')
+      if (acceptRes?.ok === false) {
+        toast.error(acceptRes.error || 'Failed to accept request.')
+        return
+      }
+    }
+
+    // назначаем тему созданному проекту (существующую или новую)
+    const res = await assignTopic({ requestId: request.id, ...payload })
+    if (res?.ok === false) {
+      toast.error(res.error || 'Failed to assign topic.')
+      return
+    }
+
+    toast.success('Accepted and topic assigned!')
+    setTopicModalRequest(null)
+  }
+
+  const handleReject = async (requestId, studentName) => {
     const ok = await confirm({
-      title: isAccept ? 'Accept Student' : 'Reject Student',
-      message: isAccept
-        ? `Accept ${studentName || 'this student'}? They will be assigned to you.`
-        : `Reject ${studentName || 'this student'}? They will be notified.`,
-      confirmLabel: isAccept ? 'Accept' : 'Reject',
-      variant: isAccept ? 'info' : 'danger',
+      title: 'Reject Student',
+      message: `Reject ${studentName || 'this student'}? They will be notified.`,
+      confirmLabel: 'Reject',
+      variant: 'danger',
     })
     if (!ok) return
 
-    const result = await updateRequestStatus(requestId, status)
+    const result = await updateRequestStatus(requestId, 'rejected')
     if (result?.ok !== false) {
-      toast.success(isAccept ? 'Student accepted!' : 'Request rejected.')
+      toast.success('Request rejected.')
     } else {
       toast.error(result.error || 'Failed to update status.')
     }
+  }
+
+  const handleArchiveToggle = async (topic) => {
+    const res = await archiveTopic(topic.id, !topic.archived)
+    if (res?.ok === false) {
+      toast.error(res.error || 'Failed to update topic.')
+      return
+    }
+    toast.success(topic.archived ? 'Topic restored.' : 'Topic archived.')
   }
 
   const handleReview = async (requestId) => {
@@ -410,6 +640,13 @@ export default function SupervisorDashboardPage() {
   return (
     <section>
       <StudentProfileModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
+      <AssignTopicModal
+        open={!!topicModalRequest}
+        request={topicModalRequest}
+        availableTopics={availableTopics}
+        onClose={() => setTopicModalRequest(null)}
+        onConfirm={handleAssignConfirm}
+      />
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -774,6 +1011,21 @@ export default function SupervisorDashboardPage() {
                         </span>
                       </div>
 
+                      {/* назначенная тема для принятой заявки */}
+                      {request.status === 'accepted' && request.project?.topicTitle && (
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+                          padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                          background: 'var(--accent-soft)', border: '1px solid var(--accent)',
+                        }}>
+                          <Tag size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                          <span className="text-caption" style={{ fontSize: '0.72rem' }}>Topic:</span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {request.project.topicTitle}
+                          </span>
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {request.status === 'pending' && (
                           <button
@@ -789,20 +1041,31 @@ export default function SupervisorDashboardPage() {
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
-                            onClick={() => handleStatusUpdate(request.id, 'accepted', request.studentName)}
+                            onClick={() => handleAccept(request)}
                           >
                             <Check size={14} strokeWidth={2.5} />
-                            Accept
+                            Accept & Assign Topic
                           </button>
                         )}
                         {(request.status === 'pending' || request.status === 'under review') && (
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
-                            onClick={() => handleStatusUpdate(request.id, 'rejected', request.studentName)}
+                            onClick={() => handleReject(request.id, request.studentName)}
                           >
                             <X size={14} strokeWidth={2.5} />
                             Reject
+                          </button>
+                        )}
+                        {/* принятая заявка без темы — даём назначить тему */}
+                        {request.status === 'accepted' && !request.project?.topicId && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleAccept(request)}
+                          >
+                            <Tag size={14} strokeWidth={2.2} />
+                            Assign Topic
                           </button>
                         )}
                       </div>
@@ -825,11 +1088,26 @@ export default function SupervisorDashboardPage() {
               className="card"
               style={{ padding: 24, marginBottom: 24 }}
             >
-              <h3 className="heading-subtitle" style={{ fontSize: '1rem', marginBottom: 4 }}>
-                Add Research Topic
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <h3 className="heading-subtitle" style={{ fontSize: '1rem', marginBottom: 4 }}>
+                  Add Research Topic
+                </h3>
+                {(() => {
+                  const cap = supervisor?.capacity || 8
+                  const full = activeTopicCount >= cap
+                  return (
+                    <span style={{
+                      fontSize: '0.75rem', fontWeight: 700, padding: '4px 10px', borderRadius: 'var(--radius-full)',
+                      background: full ? 'var(--danger)15' : 'var(--success)15',
+                      color: full ? 'var(--danger)' : 'var(--success)',
+                    }}>
+                      {activeTopicCount}/{cap} active topics
+                    </span>
+                  )
+                })()}
+              </div>
               <p className="text-caption" style={{ marginBottom: 20 }}>
-                Create topics so students know what areas you supervise.
+                Create topics so students know what you supervise. Active topics are limited to your capacity ({supervisor?.capacity || 8}).
               </p>
 
               <form
@@ -906,9 +1184,9 @@ export default function SupervisorDashboardPage() {
                     key={topic.id}
                     variants={staggerItem}
                     className="card card-interactive"
-                    style={{ padding: 20 }}
+                    style={{ padding: 20, opacity: topic.archived ? 0.6 : 1 }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 }}>
                       <h4 className="heading-subtitle" style={{ fontSize: '0.9375rem' }}>
                         {topic.title}
                       </h4>
@@ -916,17 +1194,33 @@ export default function SupervisorDashboardPage() {
                         {topic.area}
                       </span>
                     </div>
+                    <div style={{ marginBottom: 10 }}>
+                      <TopicStatusBadge status={topic.status} archived={topic.archived} />
+                    </div>
                     <p className="text-body" style={{ fontSize: '0.8125rem', marginBottom: 14 }}>
                       {topic.description}
                     </p>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-xs"
-                      onClick={() => handleTopicRemove(topic.id, topic.title)}
-                    >
-                      <Trash2 size={12} />
-                      Remove
-                    </button>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => handleArchiveToggle(topic)}
+                      >
+                        {topic.archived ? <ArchiveRestore size={12} /> : <Archive size={12} />}
+                        {topic.archived ? 'Restore' : 'Archive'}
+                      </button>
+                      {/* назначенную тему удалять нельзя — целостность данных */}
+                      {topic.status !== 'Assigned' && (
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-xs"
+                          onClick={() => handleTopicRemove(topic.id, topic.title)}
+                        >
+                          <Trash2 size={12} />
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </motion.article>
                 ))}
               </motion.div>
