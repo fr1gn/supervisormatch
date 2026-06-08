@@ -339,7 +339,7 @@ export default function LoginPage() {
             </p>
             <div style={{ display: 'grid', gap: 4, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
               <div>Student: <strong style={{ color: 'var(--text-primary)' }}>student@test.com</strong></div>
-              <div>Supervisor: <strong style={{ color: 'var(--text-primary)' }}>johnson@university.edu</strong></div>
+              <div>Supervisor: <strong style={{ color: 'var(--text-primary)' }}>supervisor@test.com</strong></div>
               <div>Password: <strong style={{ color: 'var(--text-primary)' }}>Aitu2026</strong></div>
             </div>
           </div>
